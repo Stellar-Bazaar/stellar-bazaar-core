@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
     "contracts/bazaar_deal_engine",
+    "contracts/demand_circle_registry",
     "crates/bazaar_indexer",
 ]
 

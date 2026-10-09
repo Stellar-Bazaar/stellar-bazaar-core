@@ -9,6 +9,7 @@ Cargo.lock
 .env.*.local
 *.key
 *.pem
+.deployer.json
 
 # IDE & Editor files
 .idea/
