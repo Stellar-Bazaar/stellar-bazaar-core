@@ -1,7 +1,7 @@
 # Version control ignore rules for Stellar Bazaar Core
 target/
 **/*.rs.bk
-Cargo.lock
+
 
 # Environment & credentials
 .env
