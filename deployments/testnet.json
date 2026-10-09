@@ -1,0 +1,16 @@
+{
+  "contractName": "DemandCircleRegistry",
+  "network": "TESTNET",
+  "networkPassphrase": "Test SDF Network ; September 2015",
+  "rpcUrl": "https://soroban-testnet.stellar.org",
+  "contractId": "CCBYRME7BW3IPB7F64D5A3NQ3N6QHAPO4NO3N3MFAIJJYK5TUMTCMEII",
+  "wasmHash": "030ef1d9e4bd672497afdf8c5791ea272e1c0086719449ac2fea62602d50446c",
+  "deployerAddress": "GDFY45PPNZP4RHRYX7F57ZUL6YXVA4D2RD6S4UV6IDK3UWH56VIDF6QP",
+  "uploadTxHash": "b2384638a62d2b8fbbc68d46ad7d665fe62ad9b86ae22a3eb4c50f27517fe38e",
+  "deploymentTxHash": "1c3a2dc05721f4f94c44ca693415130bd294c9dd7783578459b0de6c3fda2eba",
+  "initializeTxHash": "e8e36cbbb61761a232662791350307d345f627d627f62e47e0446e253e81f584",
+  "sampleCircleTxHash": "e45b72348680d67113019b544744b2cd85cf32a874b15dc71506067f87e094c8",
+  "sampleCircleId": 1,
+  "explorerUrl": "https://stellar.expert/explorer/testnet/contract/CCBYRME7BW3IPB7F64D5A3NQ3N6QHAPO4NO3N3MFAIJJYK5TUMTCMEII",
+  "deployedAt": "2026-10-09T18:01:05.123Z"
+}
