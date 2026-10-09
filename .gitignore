@@ -27,3 +27,4 @@ postgres_data/
 
 # Soroban build artifacts
 .soroban/
+test_snapshots/
