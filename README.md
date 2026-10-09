@@ -1,21 +1,25 @@
 # Stellar Bazaar Core (`stellar-bazaar-core`)
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Live DApp](https://img.shields.io/badge/Live%20DApp-stellar--bazaar--dapp.netlify.app-00C7B7.svg)](https://stellar-bazaar-dapp.netlify.app)
 [![Soroban](https://img.shields.io/badge/Soroban-Protocol_22-green.svg)](https://soroban.stellar.org)
 [![Rust](https://img.shields.io/badge/Rust-1.80+-orange.svg)](https://www.rust-lang.org)
 [![Stellar](https://img.shields.io/badge/Stellar-Testnet-black.svg)](https://stellar.org)
 [![CI](https://img.shields.io/badge/CI-Passing-brightgreen.svg)](https://github.com/Stellar-Bazaar/stellar-bazaar-core/actions)
 
-The core architecture, Soroban smart contracts, deployment automation, and event-indexing abstractions for **Stellar Bazaar** — a demand-driven marketplace on Stellar where buyers coordinate collective purchasing, sellers submit competing quotes, and Soroban smart contracts enforce commercial rules, escrow custody, quorum qualification, settlement, and verifiable reputation.
+> **Live Decentralized Application**: [https://stellar-bazaar-dapp.netlify.app](https://stellar-bazaar-dapp.netlify.app)
+
+The core architecture, Soroban smart contracts, deployment automation, and event-indexing abstractions for **Stellar Bazaar** — a demand-driven marketplace on Stellar where buyers coordinate collective purchasing demand, sellers submit competing quotes, and Soroban smart contracts enforce commercial rules, escrow custody, quorum qualification, settlement, and verifiable on-chain reputation.
 
 ---
 
-## Architecture & Smart Contracts
+## Architecture Overview
 
 ```
 +-------------------------------------------------------------+
 |                     stellar-bazaar-frontend                 |
 |            (Multi-Wallet / Soroban RPC / Vite + React)      |
+|               https://stellar-bazaar-dapp.netlify.app       |
 +------------------------------+------------------------------+
                                |
                    Simulate / Submit / Events
@@ -55,6 +59,10 @@ The core architecture, Soroban smart contracts, deployment automation, and event
 +-------------------------------------------------------------+
 ```
 
+---
+
+## Smart Contract Implementations
+
 ### 1. `contracts/demand_circle_registry`
 The authoritative registry contract managing the lifecycle of demand circles on Soroban.
 - **Contract Methods**:
@@ -85,30 +93,30 @@ Relational database schema for derived indexing across demand circles, buyer com
 
 ---
 
-## Live Stellar Testnet Deployments & Verified Transactions
+## Live Stellar Testnet Deployments & Explorer Verification
 
 Both contracts are actively deployed, initialized, and verified on Stellar Testnet:
 
 ### 1. `DemandCircleRegistry` Contract
 - **Contract ID**: [`CCBYRME7BW3IPB7F64D5A3NQ3N6QHAPO4NO3N3MFAIJJYK5TUMTCMEII`](https://stellar.expert/explorer/testnet/contract/CCBYRME7BW3IPB7F64D5A3NQ3N6QHAPO4NO3N3MFAIJJYK5TUMTCMEII)
 - **WASM Hash**: `030ef1d9e4bd672497afdf8c5791ea272e1c0086719449ac2fea62602d50446c`
-- **Deployment Tx**: [`1c3a2dc05721f4f94c44ca693415130bd294c9dd7783578459b0de6c3fda2eba`](https://stellar.expert/explorer/testnet/tx/1c3a2dc05721f4f94c44ca693415130bd294c9dd7783578459b0de6c3fda2eba)
-- **Initialization Tx**: [`e8e36cbbb61761a232662791350307d345f627d627f62e47e0446e253e81f584`](https://stellar.expert/explorer/testnet/tx/e8e36cbbb61761a232662791350307d345f627d627f62e47e0446e253e81f584)
-- **Sample Circle #1 Tx**: [`e45b72348680d67113019b544744b2cd85cf32a874b15dc71506067f87e094c8`](https://stellar.expert/explorer/testnet/tx/e45b72348680d67113019b544744b2cd85cf32a874b15dc71506067f87e094c8)
+- **Deployment Transaction**: [`1c3a2dc05721f4f94c44ca693415130bd294c9dd7783578459b0de6c3fda2eba`](https://stellar.expert/explorer/testnet/tx/1c3a2dc05721f4f94c44ca693415130bd294c9dd7783578459b0de6c3fda2eba)
+- **Initialization Transaction**: [`e8e36cbbb61761a232662791350307d345f627d627f62e47e0446e253e81f584`](https://stellar.expert/explorer/testnet/tx/e8e36cbbb61761a232662791350307d345f627d627f62e47e0446e253e81f584)
+- **Sample Circle #1 Creation**: [`e45b72348680d67113019b544744b2cd85cf32a874b15dc71506067f87e094c8`](https://stellar.expert/explorer/testnet/tx/e45b72348680d67113019b544744b2cd85cf32a874b15dc71506067f87e094c8)
 
 ### 2. `BazaarDealEngine` Contract
 - **Contract ID**: [`CDCK6A2QB5QTILDWILUQGAUWXI543TK63WN2OKG7WEWHBAMGZ6ESKY4G`](https://stellar.expert/explorer/testnet/contract/CDCK6A2QB5QTILDWILUQGAUWXI543TK63WN2OKG7WEWHBAMGZ6ESKY4G)
 - **WASM Hash**: `b42d0079078dcc5b773a4fe7f312fe62601051b1dce7a05c4500e0affd07d4d4`
-- **WASM Upload Tx**: [`51d756558976c10a377cf0f7fe20f4580bedb0d4b3735d25937104daf1d3ccf9`](https://stellar.expert/explorer/testnet/tx/51d756558976c10a377cf0f7fe20f4580bedb0d4b3735d25937104daf1d3ccf9)
-- **Deployment Tx**: [`0b8e8f097d979cac4ecdbe117ea282ded565702eb64b408d774f5c563932a819`](https://stellar.expert/explorer/testnet/tx/0b8e8f097d979cac4ecdbe117ea282ded565702eb64b408d774f5c563932a819)
-- **Initialization Tx**: [`4937c86681ab737d45091ea01b0bbcbea4db8b8af7e18a3647c54866bbaf6fba`](https://stellar.expert/explorer/testnet/tx/4937c86681ab737d45091ea01b0bbcbea4db8b8af7e18a3647c54866bbaf6fba)
-- **Cross-Contract Interaction Tx**: [`d4bd4a09eda30e8cb462645de31620a756777621f64c097801bb0b5f66f49dee`](https://stellar.expert/explorer/testnet/tx/d4bd4a09eda30e8cb462645de31620a756777621f64c097801bb0b5f66f49dee)
-- **Seller Offer #1 Submission Tx**: [`29a1d3c834a37955f11e34a4ec09bf5731ee712abece00b96e17f6c5596efd2d`](https://stellar.expert/explorer/testnet/tx/29a1d3c834a37955f11e34a4ec09bf5731ee712abece00b96e17f6c5596efd2d)
-- **Buyer Commitment & Escrow Deposit Tx**: [`b3882ad240c7edda4aa88874881cd76651fb3e572aa3862af616e3a6df87d47f`](https://stellar.expert/explorer/testnet/tx/b3882ad240c7edda4aa88874881cd76651fb3e572aa3862af616e3a6df87d47f)
-- **Accept Seller Offer Tx**: [`f1dc6949a1df65be9bfdf2eb5fd256e7809cf3499cfb9f1d8ff03c43892d98d7`](https://stellar.expert/explorer/testnet/tx/f1dc6949a1df65be9bfdf2eb5fd256e7809cf3499cfb9f1d8ff03c43892d98d7)
-- **Deal Settlement & Escrow Release Tx**: [`859eef0957c18a780d433fc4ea61066fabcfd1c2a05cb38a61d4eccaf476b2cd`](https://stellar.expert/explorer/testnet/tx/859eef0957c18a780d433fc4ea61066fabcfd1c2a05cb38a61d4eccaf476b2cd)
+- **WASM Upload Transaction**: [`51d756558976c10a377cf0f7fe20f4580bedb0d4b3735d25937104daf1d3ccf9`](https://stellar.expert/explorer/testnet/tx/51d756558976c10a377cf0f7fe20f4580bedb0d4b3735d25937104daf1d3ccf9)
+- **Deployment Transaction**: [`0b8e8f097d979cac4ecdbe117ea282ded565702eb64b408d774f5c563932a819`](https://stellar.expert/explorer/testnet/tx/0b8e8f097d979cac4ecdbe117ea282ded565702eb64b408d774f5c563932a819)
+- **Initialization Transaction**: [`4937c86681ab737d45091ea01b0bbcbea4db8b8af7e18a3647c54866bbaf6fba`](https://stellar.expert/explorer/testnet/tx/4937c86681ab737d45091ea01b0bbcbea4db8b8af7e18a3647c54866bbaf6fba)
+- **Cross-Contract Linking Transaction**: [`d4bd4a09eda30e8cb462645de31620a756777621f64c097801bb0b5f66f49dee`](https://stellar.expert/explorer/testnet/tx/d4bd4a09eda30e8cb462645de31620a756777621f64c097801bb0b5f66f49dee)
+- **Seller Offer Submission Transaction**: [`29a1d3c834a37955f11e34a4ec09bf5731ee712abece00b96e17f6c5596efd2d`](https://stellar.expert/explorer/testnet/tx/29a1d3c834a37955f11e34a4ec09bf5731ee712abece00b96e17f6c5596efd2d)
+- **Buyer Commitment & Escrow Deposit Transaction**: [`b3882ad240c7edda4aa88874881cd76651fb3e572aa3862af616e3a6df87d47f`](https://stellar.expert/explorer/testnet/tx/b3882ad240c7edda4aa88874881cd76651fb3e572aa3862af616e3a6df87d47f)
+- **Accept Seller Offer Transaction**: [`f1dc6949a1df65be9bfdf2eb5fd256e7809cf3499cfb9f1d8ff03c43892d98d7`](https://stellar.expert/explorer/testnet/tx/f1dc6949a1df65be9bfdf2eb5fd256e7809cf3499cfb9f1d8ff03c43892d98d7)
+- **Deal Settlement & Escrow Release Transaction**: [`859eef0957c18a780d433fc4ea61066fabcfd1c2a05cb38a61d4eccaf476b2cd`](https://stellar.expert/explorer/testnet/tx/859eef0957c18a780d433fc4ea61066fabcfd1c2a05cb38a61d4eccaf476b2cd)
 
-Deployment details recorded in [`deployments/testnet.json`](deployments/testnet.json).
+Complete deployment parameters are tracked in [`deployments/testnet.json`](deployments/testnet.json).
 
 ---
 
@@ -157,11 +165,9 @@ Genuine screenshots captured from development tools and running application:
 
 ---
 
-## Security & Threat Model
+## Security & Governance
 
-Comprehensive threat model and mitigations are documented in [`SECURITY.md`](SECURITY.md), including:
-- Authorization boundaries and `require_auth()` guarantees
-- Replay protection via composite storage keys
-- Checked arithmetic and decimal precision
-- Checks-Effects-Interactions pattern for escrow handling
-- Minimal administrator authority with zero fund seizure powers
+- [Security Policy & Threat Model](SECURITY.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+- [Contributor Guidelines](CONTRIBUTING.md)
+- [MIT License](LICENSE)
