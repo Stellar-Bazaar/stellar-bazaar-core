@@ -1,0 +1,29 @@
+# Version control ignore rules for Stellar Bazaar Core
+target/
+**/*.rs.bk
+Cargo.lock
+
+# Environment & credentials
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+
+# IDE & Editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Database & local runtime
+*.db
+*.sqlite
+*.sqlite3
+postgres_data/
+
+# Soroban build artifacts
+.soroban/
