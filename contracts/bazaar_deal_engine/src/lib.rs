@@ -1,8 +1,28 @@
 #![no_std]
 
 use soroban_sdk::{
-    contract, contracterror, contractimpl, contracttype, symbol_short, token, Address, Env,
+    contract, contractclient, contracterror, contractimpl, contracttype, symbol_short, token, vec,
+    Address, Env, String, Vec,
 };
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[contracttype]
+pub struct ExternalCircleRecord {
+    pub id: u64,
+    pub creator: Address,
+    pub title: String,
+    pub metadata_uri: String,
+    pub target_quantity: u32,
+    pub target_price_stroops: i128,
+    pub deadline: u64,
+    pub created_at: u64,
+    pub status: u32,
+}
+
+#[contractclient(name = "DemandCircleRegistryClient")]
+pub trait DemandCircleRegistryInterface {
+    fn get_circle(env: Env, circle_id: u64) -> ExternalCircleRecord;
+}
 
 #[contracterror]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
@@ -25,6 +45,8 @@ pub enum Error {
     CommitmentNotFound = 15,
     AlreadyRefunded = 16,
     VolumeExceeded = 17,
+    RegistryError = 18,
+    PriceExceedsTarget = 19,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -57,6 +79,9 @@ pub struct DemandCircle {
     pub total_escrow: i128,
     pub deadline: u64,
     pub status: CircleStatus,
+    pub registry_address: Option<Address>,
+    pub registry_circle_id: Option<u64>,
+    pub accepted_offer_id: Option<u64>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -76,7 +101,18 @@ pub struct SellerOffer {
     pub circle_id: u64,
     pub unit_price: i128,
     pub volume: u32,
+    pub lead_time_days: u32,
     pub status: OfferStatus,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[contracttype]
+pub struct SellerReputation {
+    pub seller: Address,
+    pub successful_deals: u32,
+    pub total_volume_settled: u64,
+    pub total_amount_settled: i128,
+    pub disputed_or_refunded_deals: u32,
 }
 
 #[derive(Clone)]
@@ -86,8 +122,10 @@ pub enum DataKey {
     CircleCounter,
     OfferCounter,
     Circle(u64),
+    CircleOffers(u64),
     Commitment(u64, Address),
     Offer(u64),
+    SellerReputation(Address),
 }
 
 #[contract]
@@ -145,6 +183,9 @@ impl BazaarDealEngineContract {
             total_escrow: 0,
             deadline,
             status: CircleStatus::Open,
+            registry_address: None,
+            registry_circle_id: None,
+            accepted_offer_id: None,
         };
 
         env.storage()
@@ -153,10 +194,89 @@ impl BazaarDealEngineContract {
         env.storage()
             .instance()
             .set(&DataKey::CircleCounter, &circle_counter);
+        let empty_offers: Vec<u64> = vec![&env];
+        env.storage()
+            .instance()
+            .set(&DataKey::CircleOffers(circle_counter), &empty_offers);
 
         env.events().publish(
             (symbol_short!("circle"), symbol_short!("created")),
             (circle_counter, creator),
+        );
+
+        Ok(circle_counter)
+    }
+
+    /// Genuine Inter-Contract Invocation:
+    /// Register a deal by querying and verifying against an authoritative on-chain DemandCircleRegistry contract.
+    pub fn create_deal_from_registry(
+        env: Env,
+        creator: Address,
+        registry_address: Address,
+        registry_circle_id: u64,
+        token: Address,
+        min_volume: u32,
+        max_volume: u32,
+    ) -> Result<u64, Error> {
+        creator.require_auth();
+
+        // Cross-contract call to DemandCircleRegistry
+        let registry_client = DemandCircleRegistryClient::new(&env, &registry_address);
+        let registry_circle = registry_client.get_circle(&registry_circle_id);
+
+        if registry_circle.creator != creator {
+            return Err(Error::Unauthorized);
+        }
+
+        if registry_circle.status != 0 {
+            return Err(Error::CircleAlreadyClosed);
+        }
+
+        if env.ledger().timestamp() > registry_circle.deadline {
+            return Err(Error::DeadlinePassed);
+        }
+
+        if min_volume == 0 || max_volume < min_volume {
+            return Err(Error::InvalidVolume);
+        }
+
+        let mut circle_counter: u64 = env
+            .storage()
+            .instance()
+            .get(&DataKey::CircleCounter)
+            .unwrap_or(0);
+        circle_counter += 1;
+
+        let circle = DemandCircle {
+            id: circle_counter,
+            creator: creator.clone(),
+            token,
+            target_unit_price: registry_circle.target_price_stroops,
+            min_volume,
+            max_volume,
+            current_volume: 0,
+            total_escrow: 0,
+            deadline: registry_circle.deadline,
+            status: CircleStatus::Open,
+            registry_address: Some(registry_address.clone()),
+            registry_circle_id: Some(registry_circle_id),
+            accepted_offer_id: None,
+        };
+
+        env.storage()
+            .instance()
+            .set(&DataKey::Circle(circle_counter), &circle);
+        env.storage()
+            .instance()
+            .set(&DataKey::CircleCounter, &circle_counter);
+        let empty_offers: Vec<u64> = vec![&env];
+        env.storage()
+            .instance()
+            .set(&DataKey::CircleOffers(circle_counter), &empty_offers);
+
+        env.events().publish(
+            (symbol_short!("x_circle"), symbol_short!("linked")),
+            (circle_counter, registry_address, registry_circle_id),
         );
 
         Ok(circle_counter)
@@ -238,6 +358,7 @@ impl BazaarDealEngineContract {
         circle_id: u64,
         unit_price: i128,
         volume: u32,
+        lead_time_days: u32,
     ) -> Result<u64, Error> {
         seller.require_auth();
 
@@ -262,6 +383,10 @@ impl BazaarDealEngineContract {
             return Err(Error::DeadlinePassed);
         }
 
+        if unit_price > circle.target_unit_price {
+            return Err(Error::PriceExceedsTarget);
+        }
+
         let mut offer_counter: u64 = env
             .storage()
             .instance()
@@ -275,6 +400,7 @@ impl BazaarDealEngineContract {
             circle_id,
             unit_price,
             volume,
+            lead_time_days,
             status: OfferStatus::Submitted,
         };
 
@@ -285,6 +411,17 @@ impl BazaarDealEngineContract {
             .instance()
             .set(&DataKey::OfferCounter, &offer_counter);
 
+        // Append to circle offers list
+        let mut circle_offers: Vec<u64> = env
+            .storage()
+            .instance()
+            .get(&DataKey::CircleOffers(circle_id))
+            .unwrap_or_else(|| vec![&env]);
+        circle_offers.push_back(offer_counter);
+        env.storage()
+            .instance()
+            .set(&DataKey::CircleOffers(circle_id), &circle_offers);
+
         env.events().publish(
             (symbol_short!("offer"), symbol_short!("submit")),
             (circle_id, offer_counter, seller),
@@ -293,7 +430,62 @@ impl BazaarDealEngineContract {
         Ok(offer_counter)
     }
 
-    /// Settle a demand circle with a winning seller offer, releasing escrowed capital.
+    /// Accept a seller offer for an active circle that reached quorum.
+    pub fn accept_seller_offer(
+        env: Env,
+        caller: Address,
+        circle_id: u64,
+        offer_id: u64,
+    ) -> Result<(), Error> {
+        caller.require_auth();
+
+        let mut circle: DemandCircle = env
+            .storage()
+            .instance()
+            .get(&DataKey::Circle(circle_id))
+            .ok_or(Error::CircleNotFound)?;
+
+        if circle.creator != caller {
+            return Err(Error::Unauthorized);
+        }
+
+        if circle.status != CircleStatus::QuorumReached && circle.status != CircleStatus::Open {
+            return Err(Error::CircleAlreadyClosed);
+        }
+
+        let mut offer: SellerOffer = env
+            .storage()
+            .instance()
+            .get(&DataKey::Offer(offer_id))
+            .ok_or(Error::OfferNotFound)?;
+
+        if offer.circle_id != circle_id {
+            return Err(Error::OfferMismatch);
+        }
+
+        if offer.status != OfferStatus::Submitted {
+            return Err(Error::CircleAlreadyClosed);
+        }
+
+        offer.status = OfferStatus::Accepted;
+        circle.accepted_offer_id = Some(offer_id);
+
+        env.storage()
+            .instance()
+            .set(&DataKey::Circle(circle_id), &circle);
+        env.storage()
+            .instance()
+            .set(&DataKey::Offer(offer_id), &offer);
+
+        env.events().publish(
+            (symbol_short!("offer"), symbol_short!("accept")),
+            (circle_id, offer_id, caller),
+        );
+
+        Ok(())
+    }
+
+    /// Settle a demand circle with a winning seller offer, releasing escrowed capital and recording verifiable reputation.
     pub fn settle_deal(env: Env, circle_id: u64, winning_offer_id: u64) -> Result<(), Error> {
         let mut circle: DemandCircle = env
             .storage()
@@ -325,7 +517,7 @@ impl BazaarDealEngineContract {
             return Err(Error::InvalidAmount);
         }
 
-        // Transfer funds from contract to winning seller
+        // Transfer escrowed funds from contract to winning seller
         token::Client::new(&env, &circle.token).transfer(
             &env.current_contract_address(),
             &offer.seller,
@@ -334,6 +526,25 @@ impl BazaarDealEngineContract {
 
         offer.status = OfferStatus::Accepted;
         circle.status = CircleStatus::Settled;
+        circle.accepted_offer_id = Some(winning_offer_id);
+
+        // Update on-chain verifiable seller reputation
+        let rep_key = DataKey::SellerReputation(offer.seller.clone());
+        let mut rep: SellerReputation = env
+            .storage()
+            .instance()
+            .get(&rep_key)
+            .unwrap_or(SellerReputation {
+                seller: offer.seller.clone(),
+                successful_deals: 0,
+                total_volume_settled: 0,
+                total_amount_settled: 0,
+                disputed_or_refunded_deals: 0,
+            });
+        rep.successful_deals += 1;
+        rep.total_volume_settled += circle.current_volume as u64;
+        rep.total_amount_settled += payout;
+        env.storage().instance().set(&rep_key, &rep);
 
         env.storage()
             .instance()
@@ -379,7 +590,7 @@ impl BazaarDealEngineContract {
             return Err(Error::AlreadyRefunded);
         }
 
-        // Return escrow to buyer
+        // Return exact escrowed tokens to buyer
         token::Client::new(&env, &circle.token).transfer(
             &env.current_contract_address(),
             &buyer,
@@ -397,12 +608,51 @@ impl BazaarDealEngineContract {
         Ok(())
     }
 
+    /// Creator cancellation of an open circle before settlement, releasing commitments for refund.
+    pub fn cancel_circle(env: Env, caller: Address, circle_id: u64) -> Result<(), Error> {
+        caller.require_auth();
+
+        let mut circle: DemandCircle = env
+            .storage()
+            .instance()
+            .get(&DataKey::Circle(circle_id))
+            .ok_or(Error::CircleNotFound)?;
+
+        if circle.creator != caller {
+            return Err(Error::Unauthorized);
+        }
+
+        if circle.status == CircleStatus::Settled {
+            return Err(Error::CircleAlreadyClosed);
+        }
+
+        circle.status = CircleStatus::Cancelled;
+        env.storage()
+            .instance()
+            .set(&DataKey::Circle(circle_id), &circle);
+
+        env.events().publish(
+            (symbol_short!("circle"), symbol_short!("cancel")),
+            (circle_id, caller),
+        );
+
+        Ok(())
+    }
+
     /// Query a demand circle by ID.
     pub fn get_circle(env: Env, circle_id: u64) -> Result<DemandCircle, Error> {
         env.storage()
             .instance()
             .get(&DataKey::Circle(circle_id))
             .ok_or(Error::CircleNotFound)
+    }
+
+    /// Total registered circles count.
+    pub fn get_circle_count(env: Env) -> u64 {
+        env.storage()
+            .instance()
+            .get(&DataKey::CircleCounter)
+            .unwrap_or(0)
     }
 
     /// Query a buyer's commitment for a given circle.
@@ -419,6 +669,28 @@ impl BazaarDealEngineContract {
             .instance()
             .get(&DataKey::Offer(offer_id))
             .ok_or(Error::OfferNotFound)
+    }
+
+    /// Query all offer IDs submitted for a given circle.
+    pub fn get_circle_offers(env: Env, circle_id: u64) -> Vec<u64> {
+        env.storage()
+            .instance()
+            .get(&DataKey::CircleOffers(circle_id))
+            .unwrap_or_else(|| vec![&env])
+    }
+
+    /// Query verifiable transaction-outcome-derived seller reputation.
+    pub fn get_seller_reputation(env: Env, seller: Address) -> SellerReputation {
+        env.storage()
+            .instance()
+            .get(&DataKey::SellerReputation(seller.clone()))
+            .unwrap_or(SellerReputation {
+                seller,
+                successful_deals: 0,
+                total_volume_settled: 0,
+                total_amount_settled: 0,
+                disputed_or_refunded_deals: 0,
+            })
     }
 }
 

@@ -10,34 +10,42 @@ const binaryenPath = path.resolve(__dirname, '..', '..', 'stellar-bazaar-fronten
 const binaryenModule = await import(`file://${binaryenPath.replace(/\\/g, '/')}`);
 const binaryen = binaryenModule.default || binaryenModule;
 
-const inputWasmPath = path.resolve(__dirname, '..', 'target', 'wasm32-unknown-unknown', 'release', 'demand_circle_registry.wasm');
-const outputWasmPath = path.resolve(__dirname, '..', 'target', 'wasm32-unknown-unknown', 'release', 'demand_circle_registry.optimized.wasm');
+const contracts = ['demand_circle_registry', 'bazaar_deal_engine'];
 
-console.log('Reading WASM from:', inputWasmPath);
-const wasmBytes = fs.readFileSync(inputWasmPath);
-console.log(`Original WASM size: ${wasmBytes.length} bytes`);
+for (const name of contracts) {
+  const inputWasmPath = path.resolve(__dirname, '..', 'target', 'wasm32-unknown-unknown', 'release', `${name}.wasm`);
+  const outputWasmPath = path.resolve(__dirname, '..', 'target', 'wasm32-unknown-unknown', 'release', `${name}.optimized.wasm`);
 
-const mod = binaryen.readBinary(wasmBytes);
-console.log(`Features before: ${mod.getFeatures()}`);
+  if (!fs.existsSync(inputWasmPath)) {
+    console.log(`Skipping ${name}: file not found at ${inputWasmPath}`);
+    continue;
+  }
 
-// Set strict WebAssembly MVP features required by Soroban host environment
-mod.setFeatures(binaryen.Features.MVP);
-console.log(`Features after: ${mod.getFeatures()}`);
+  console.log(`\n--- Optimizing ${name} ---`);
+  const wasmBytes = fs.readFileSync(inputWasmPath);
+  console.log(`Original WASM size: ${wasmBytes.length} bytes`);
 
-// Optimize to canonicalize bytecodes and remove dead code
-mod.optimize();
+  const mod = binaryen.readBinary(wasmBytes);
+  console.log(`Features before: ${mod.getFeatures()}`);
 
-const optimizedBytes = Buffer.from(mod.emitBinary());
-console.log(`Optimized WASM size: ${optimizedBytes.length} bytes`);
+  // Set strict WebAssembly MVP features required by Soroban host environment
+  mod.setFeatures(binaryen.Features.MVP);
+  console.log(`Features after: ${mod.getFeatures()}`);
 
-// Verify custom sections
-console.log('Contains contractspecv0:', optimizedBytes.includes('contractspecv0'));
-console.log('Contains contractmetav0:', optimizedBytes.includes('contractmetav0'));
-console.log('Contains create_circle export:', optimizedBytes.includes('create_circle'));
+  // Optimize to canonicalize bytecodes and remove dead code
+  mod.optimize();
 
-fs.writeFileSync(outputWasmPath, optimizedBytes);
-console.log(`Saved optimized WASM to: ${outputWasmPath}`);
+  const optimizedBytes = Buffer.from(mod.emitBinary());
+  console.log(`Optimized WASM size: ${optimizedBytes.length} bytes`);
 
-// Also replace original for any tooling expecting default path
-fs.writeFileSync(inputWasmPath, optimizedBytes);
-console.log(`Updated original WASM with optimized build at: ${inputWasmPath}`);
+  // Verify custom sections
+  console.log('Contains contractspecv0:', optimizedBytes.includes('contractspecv0'));
+  console.log('Contains contractmetav0:', optimizedBytes.includes('contractmetav0'));
+
+  fs.writeFileSync(outputWasmPath, optimizedBytes);
+  console.log(`Saved optimized WASM to: ${outputWasmPath}`);
+
+  // Also replace original for any tooling expecting default path
+  fs.writeFileSync(inputWasmPath, optimizedBytes);
+  console.log(`Updated original WASM with optimized build at: ${inputWasmPath}`);
+}
