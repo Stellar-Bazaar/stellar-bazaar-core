@@ -1,0 +1,49 @@
+name: Stellar Bazaar Core CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  contracts-and-backend:
+    name: Contracts, Indexer & Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+          components: rustfmt, clippy
+
+      - name: Cache Cargo Dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/bin/
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Check Rust Formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run Workspace Tests
+        run: cargo test --workspace --verbose
+
+      - name: Build Soroban Contracts to WebAssembly
+        run: |
+          cargo rustc -p demand-circle-registry --target wasm32-unknown-unknown --release --crate-type=cdylib
+          cargo rustc -p bazaar-deal-engine --target wasm32-unknown-unknown --release --crate-type=cdylib
+
+      - name: Validate Contract Artifact Sizes
+        run: |
+          ls -la target/wasm32-unknown-unknown/release/*.wasm
