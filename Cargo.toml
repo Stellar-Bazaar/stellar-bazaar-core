@@ -12,3 +12,7 @@ edition = "2021"
 authors = ["KingTaiwoDev"]
 license = "MIT"
 repository = "https://github.com/Stellar-Bazaar/stellar-bazaar-core"
+
+[profile.release]
+opt-level = "z"
+overflow-checks = true

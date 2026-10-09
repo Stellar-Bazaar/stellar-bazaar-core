@@ -530,17 +530,17 @@ impl BazaarDealEngineContract {
 
         // Update on-chain verifiable seller reputation
         let rep_key = DataKey::SellerReputation(offer.seller.clone());
-        let mut rep: SellerReputation = env
-            .storage()
-            .instance()
-            .get(&rep_key)
-            .unwrap_or(SellerReputation {
-                seller: offer.seller.clone(),
-                successful_deals: 0,
-                total_volume_settled: 0,
-                total_amount_settled: 0,
-                disputed_or_refunded_deals: 0,
-            });
+        let mut rep: SellerReputation =
+            env.storage()
+                .instance()
+                .get(&rep_key)
+                .unwrap_or(SellerReputation {
+                    seller: offer.seller.clone(),
+                    successful_deals: 0,
+                    total_volume_settled: 0,
+                    total_amount_settled: 0,
+                    disputed_or_refunded_deals: 0,
+                });
         rep.successful_deals += 1;
         rep.total_volume_settled += circle.current_volume as u64;
         rep.total_amount_settled += payout;

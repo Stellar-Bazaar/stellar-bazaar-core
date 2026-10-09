@@ -164,10 +164,8 @@ fn test_cross_contract_registry_deal_registration() {
 
     // 1. Deploy DemandCircleRegistryContract
     let registry_id = env.register(DemandCircleRegistryContract, ());
-    let registry_client = demand_circle_registry::DemandCircleRegistryContractClient::new(
-        &env,
-        &registry_id,
-    );
+    let registry_client =
+        demand_circle_registry::DemandCircleRegistryContractClient::new(&env, &registry_id);
     registry_client.initialize(&admin);
 
     // 2. Create circle on Registry

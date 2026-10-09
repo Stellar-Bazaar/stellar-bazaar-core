@@ -85,10 +85,10 @@ impl DemandCircleRegistryContract {
         if target_price_stroops <= 0 {
             return Err(Error::InvalidPrice);
         }
-        if duration_seconds < 60 || duration_seconds > 31_536_000 {
+        if !(60..=31_536_000).contains(&duration_seconds) {
             return Err(Error::InvalidDeadline);
         }
-        if title.len() == 0 || title.len() > 64 {
+        if title.is_empty() || title.len() > 64 {
             return Err(Error::InvalidTitle);
         }
 
