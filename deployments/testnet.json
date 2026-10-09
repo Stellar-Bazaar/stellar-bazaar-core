@@ -12,5 +12,23 @@
   "sampleCircleTxHash": "e45b72348680d67113019b544744b2cd85cf32a874b15dc71506067f87e094c8",
   "sampleCircleId": 1,
   "explorerUrl": "https://stellar.expert/explorer/testnet/contract/CCBYRME7BW3IPB7F64D5A3NQ3N6QHAPO4NO3N3MFAIJJYK5TUMTCMEII",
-  "deployedAt": "2026-10-09T18:01:05.123Z"
+  "deployedAt": "2026-10-09T18:01:05.123Z",
+  "dealEngine": {
+    "contractName": "BazaarDealEngine",
+    "contractId": "CDCK6A2QB5QTILDWILUQGAUWXI543TK63WN2OKG7WEWHBAMGZ6ESKY4G",
+    "wasmHash": "b42d0079078dcc5b773a4fe7f312fe62601051b1dce7a05c4500e0affd07d4d4",
+    "uploadTxHash": "51d756558976c10a377cf0f7fe20f4580bedb0d4b3735d25937104daf1d3ccf9",
+    "deploymentTxHash": "0b8e8f097d979cac4ecdbe117ea282ded565702eb64b408d774f5c563932a819",
+    "initializeTxHash": "4937c86681ab737d45091ea01b0bbcbea4db8b8af7e18a3647c54866bbaf6fba",
+    "crossContractTxHash": "d4bd4a09eda30e8cb462645de31620a756777621f64c097801bb0b5f66f49dee",
+    "dealId": 1,
+    "nativeXlmSac": "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC",
+    "explorerUrl": "https://stellar.expert/explorer/testnet/contract/CDCK6A2QB5QTILDWILUQGAUWXI543TK63WN2OKG7WEWHBAMGZ6ESKY4G",
+    "deployedAt": "2026-10-09T18:44:23.650Z",
+    "liveOfferTxHash": "29a1d3c834a37955f11e34a4ec09bf5731ee712abece00b96e17f6c5596efd2d",
+    "liveOfferId": 1,
+    "liveCommitTxHash": "b3882ad240c7edda4aa88874881cd76651fb3e572aa3862af616e3a6df87d47f",
+    "acceptOfferTxHash": "f1dc6949a1df65be9bfdf2eb5fd256e7809cf3499cfb9f1d8ff03c43892d98d7",
+    "settleDealTxHash": "859eef0957c18a780d433fc4ea61066fabcfd1c2a05cb38a61d4eccaf476b2cd"
+  }
 }
