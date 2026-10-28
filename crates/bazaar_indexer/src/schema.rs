@@ -51,6 +51,28 @@ CREATE TABLE IF NOT EXISTS seller_reputations (
     score_percentage INTEGER DEFAULT 100 NOT NULL,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS disputes (
+    id TEXT PRIMARY KEY,
+    circle_id TEXT NOT NULL REFERENCES demand_circles(id),
+    initiator_address TEXT NOT NULL,
+    dispute_reason TEXT NOT NULL,
+    status TEXT NOT NULL,
+    resolution_refund_to_buyers INTEGER,
+    opened_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    resolved_at TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS protocol_fees (
+    id TEXT PRIMARY KEY,
+    circle_id TEXT NOT NULL REFERENCES demand_circles(id),
+    gross_payout_stroops TEXT NOT NULL,
+    fee_bps INTEGER NOT NULL,
+    fee_stroops TEXT NOT NULL,
+    net_payout_stroops TEXT NOT NULL,
+    treasury_address TEXT NOT NULL,
+    settled_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 "#;
 
 #[cfg(test)]
@@ -64,3 +86,4 @@ mod tests {
         assert!(SQLITE_INITIAL_SCHEMA.contains("CREATE TABLE IF NOT EXISTS seller_reputations"));
     }
 }
+
