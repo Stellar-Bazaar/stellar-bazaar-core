@@ -1,0 +1,14 @@
+{
+  "ignorePatterns": [
+    {
+      "pattern": "^https://stellar-bazaar-dapp\\.netlify\\.app"
+    },
+    {
+      "pattern": "^https://stellar\\.expert/explorer/testnet"
+    }
+  ],
+  "timeout": "15s",
+  "retryOn429": true,
+  "retryCount": 2,
+  "aliveStatusCodes": [200, 206]
+}
