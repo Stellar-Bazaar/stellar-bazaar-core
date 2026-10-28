@@ -782,6 +782,16 @@ impl BazaarDealEngineContract {
             return Err(Error::InvalidAmount);
         }
 
+        let fee_bps = env
+            .storage()
+            .instance()
+            .get(&DataKey::ProtocolFeeBps)
+            .unwrap_or(0u32);
+        let treasury: Option<Address> = env.storage().instance().get(&DataKey::Treasury);
+
+        let (seller_payout, protocol_fee) =
+            bazaar_math::calculate_net_payout(payout, fee_bps).unwrap_or((payout, 0));
+
         // --- 2. EFFECTS (State mutations before external transfer) ---
         offer.status = OfferStatus::Accepted;
         circle.status = CircleStatus::Settled;
@@ -816,15 +826,27 @@ impl BazaarDealEngineContract {
             .extend_ttl(INSTANCE_TTL_THRESHOLD, INSTANCE_TTL_EXTEND_TO);
 
         // --- 3. INTERACTIONS (External token transfer performed last) ---
-        token::Client::new(&env, &circle.token).transfer(
+        let token_client = token::Client::new(&env, &circle.token);
+
+        if protocol_fee > 0 {
+            if let Some(ref treasury_addr) = treasury {
+                token_client.transfer(
+                    &env.current_contract_address(),
+                    treasury_addr,
+                    &protocol_fee,
+                );
+            }
+        }
+
+        token_client.transfer(
             &env.current_contract_address(),
             &offer.seller,
-            &payout,
+            &seller_payout,
         );
 
         env.events().publish(
             (symbol_short!("deal"), symbol_short!("settled")),
-            (circle_id, winning_offer_id, payout),
+            (circle_id, winning_offer_id, seller_payout),
         );
 
         Ok(())
