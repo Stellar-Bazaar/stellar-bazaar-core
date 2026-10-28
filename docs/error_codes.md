@@ -52,3 +52,9 @@ Contract: `contracts/bazaar_deal_engine`
 | **19** | `PriceExceedsTarget` | Seller offer unit price exceeds the circle's maximum acceptable price. | Submit a quote at or below `target_unit_price`. |
 | **20** | `DuplicateOffer` | Seller already has an active offer for this circle. | Sellers may only have one submitted quote per circle. |
 | **21** | `NotUnderInspection` | Settlement attempted via inspection confirmation on a circle not in Inspection state. | Circle must enter inspection phase before delivery confirmation settlement. |
+| **22** | `DisputeAlreadyOpen` | Circle is already in active dispute arbitration. | Wait for administrator to resolve open dispute before submitting further dispute requests. |
+| **23** | `DisputeNotOpen` | Dispute resolution called on a circle that is not in Disputed state. | Arbitration can only be executed on active disputes. |
+| **24** | `DisputeUnauthorized` | Caller lacks standing to dispute the deal (must be creator or committed buyer). | Only participating buyers or the circle creator may raise an escrow dispute. |
+| **25** | `InvalidFeeBps` | Protocol fee basis points exceeds allowed ceiling (1,000 bps / 10%). | Fee must be within 0 to 1,000 basis points. |
+| **26** | `NoSurplusRebate` | Settled price equals or exceeds target price, resulting in zero buyer surplus. | Surplus rebates only apply when negotiated price is strictly lower than target price. |
+| **27** | `AlreadyClaimedRebate` | Buyer has already claimed their surplus price rebate. | Surplus rebates can only be claimed once per buyer commitment. |
