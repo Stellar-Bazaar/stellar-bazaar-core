@@ -42,3 +42,29 @@ impl PrometheusExporter {
         )
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_prometheus_metrics_rendering() {
+        let mut state = IndexerDaemonState::new();
+        state.record_batch_success(999_120, 150, 20, 3);
+
+        let output = PrometheusExporter::render(&state, 0);
+        assert!(output.contains("# TYPE bazaar_indexer_latest_ledger gauge"));
+        assert!(output.contains("bazaar_indexer_latest_ledger 999120"));
+        assert!(output.contains("# TYPE bazaar_indexer_events_total counter"));
+        assert!(output.contains("bazaar_indexer_events_total 150"));
+        assert!(output.contains("# TYPE bazaar_indexer_circles_total counter"));
+        assert!(output.contains("bazaar_indexer_circles_total 20"));
+        assert!(output.contains("# TYPE bazaar_indexer_disputes_total counter"));
+        assert!(output.contains("bazaar_indexer_disputes_total 3"));
+        assert!(output.contains("bazaar_indexer_health 1"));
+
+        // When degraded, health should be 0
+        let degraded_output = PrometheusExporter::render(&state, 6);
+        assert!(degraded_output.contains("bazaar_indexer_health 0"));
+    }
+}
