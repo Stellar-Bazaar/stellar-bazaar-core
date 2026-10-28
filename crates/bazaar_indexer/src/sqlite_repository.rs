@@ -354,6 +354,62 @@ impl BazaarRepository for SqliteBazaarRepository {
         ).map_err(|e| IndexerError::Database(e.to_string()))?;
         Ok(())
     }
+
+    fn list_active_circles(&self) -> Result<Vec<DemandCircleRecord>, IndexerError> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            r#"SELECT id, title, category, target_unit_price_xlm, min_volume, max_volume, current_volume, status, creator_address, deadline_timestamp
+               FROM demand_circles WHERE status IN ('OPEN', 'QUORUM_REACHED', 'INSPECTION')
+               ORDER BY created_at DESC"#
+        ).map_err(|e| IndexerError::Database(e.to_string()))?;
+
+        let rows = stmt.query_map([], |row| {
+            Ok(DemandCircleRecord {
+                id: row.get(0)?,
+                title: row.get(1)?,
+                category: row.get(2)?,
+                target_unit_price_xlm: row.get(3)?,
+                min_volume: row.get(4)?,
+                max_volume: row.get(5)?,
+                current_volume: row.get(6)?,
+                status: row.get(7)?,
+                creator_address: row.get(8)?,
+                deadline_timestamp: row.get(9)?,
+            })
+        }).map_err(|e| IndexerError::Database(e.to_string()))?;
+
+        let mut circles = Vec::new();
+        for c in rows {
+            circles.push(c.map_err(|e| IndexerError::Database(e.to_string()))?);
+        }
+        Ok(circles)
+    }
+
+    fn list_top_sellers(&self, limit: usize) -> Result<Vec<SellerReputationRecord>, IndexerError> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            r#"SELECT seller_address, successful_deals, total_volume_settled, total_amount_settled_xlm, disputed_or_refunded_deals, score_percentage
+               FROM seller_reputations ORDER BY successful_deals DESC, score_percentage DESC LIMIT ?1"#
+        ).map_err(|e| IndexerError::Database(e.to_string()))?;
+
+        let rows = stmt.query_map(params![limit as i64], |row| {
+            let volume: i64 = row.get(2)?;
+            Ok(SellerReputationRecord {
+                seller_address: row.get(0)?,
+                successful_deals: row.get(1)?,
+                total_volume_settled: volume as u64,
+                total_amount_settled_xlm: row.get(3)?,
+                disputed_or_refunded_deals: row.get(4)?,
+                score_percentage: row.get(5)?,
+            })
+        }).map_err(|e| IndexerError::Database(e.to_string()))?;
+
+        let mut reps = Vec::new();
+        for r in rows {
+            reps.push(r.map_err(|e| IndexerError::Database(e.to_string()))?);
+        }
+        Ok(reps)
+    }
 }
 
 #[cfg(test)]

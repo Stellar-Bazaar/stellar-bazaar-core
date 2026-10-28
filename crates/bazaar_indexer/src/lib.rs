@@ -47,6 +47,13 @@ pub trait BazaarRepository: Send + Sync {
     fn get_protocol_fees_for_circle(&self, _circle_id: &str) -> Result<Vec<ProtocolFeeRecord>, IndexerError> {
         Ok(Vec::new())
     }
+
+    fn list_active_circles(&self) -> Result<Vec<DemandCircleRecord>, IndexerError> {
+        Ok(Vec::new())
+    }
+    fn list_top_sellers(&self, _limit: usize) -> Result<Vec<SellerReputationRecord>, IndexerError> {
+        Ok(Vec::new())
+    }
 }
 
 /// In-memory implementation of the repository boundary for testing and local operation
@@ -141,6 +148,17 @@ impl BazaarRepository for InMemoryBazaarRepository {
 
     fn get_protocol_fees_for_circle(&self, circle_id: &str) -> Result<Vec<ProtocolFeeRecord>, IndexerError> {
         Ok(self.protocol_fees.iter().filter(|f| f.circle_id == circle_id).cloned().collect())
+    }
+
+    fn list_active_circles(&self) -> Result<Vec<DemandCircleRecord>, IndexerError> {
+        Ok(self.circles.iter().filter(|c| c.status == "OPEN" || c.status == "QUORUM_REACHED" || c.status == "INSPECTION").cloned().collect())
+    }
+
+    fn list_top_sellers(&self, limit: usize) -> Result<Vec<SellerReputationRecord>, IndexerError> {
+        let mut sorted = self.reputations.clone();
+        sorted.sort_by(|a, b| b.successful_deals.cmp(&a.successful_deals));
+        sorted.truncate(limit);
+        Ok(sorted)
     }
 }
 
