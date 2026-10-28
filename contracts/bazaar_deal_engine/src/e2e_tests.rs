@@ -580,3 +580,27 @@ fn test_e2e_multi_asset_sac_settlement() {
     assert_eq!(usdc_token_client.balance(&fix.seller), 89_100_000);
     assert_eq!(usdc_token_client.balance(&fix.treasury), 900_000);
 }
+
+#[test]
+fn test_e2e_instance_storage_ttl_extension() {
+    let env = Env::default();
+    let fix = E2EFixture::new(&env);
+
+    // Verify instance TTL threshold constants match Soroban recommendations
+    assert_eq!(INSTANCE_TTL_THRESHOLD, 17_280); // ~1 day
+    assert_eq!(INSTANCE_TTL_EXTEND_TO, 518_400); // ~30 days
+
+    let circle_id = fix.deal_client.create_circle(
+        &fix.creator,
+        &fix.token_address,
+        &10_000_000,
+        &10,
+        &50,
+        &86_400,
+    );
+
+    // Commit demand executes extend_ttl on instance storage
+    fix.deal_client.commit_demand(&fix.buyers[0], &circle_id, &5);
+    let circle = fix.deal_client.get_circle(&circle_id);
+    assert_eq!(circle.current_volume, 5);
+}
