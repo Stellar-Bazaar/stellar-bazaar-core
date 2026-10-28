@@ -96,3 +96,233 @@ impl ApiServer {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::IndexerConfig;
+    use crate::domain::*;
+    use crate::sqlite_repository::SqliteBazaarRepository;
+    use crate::http::HttpMethod;
+
+    fn build_test_server() -> ApiServer {
+        let mut repo = SqliteBazaarRepository::new_in_memory().expect("Failed in-mem sqlite");
+        repo.record_circle(DemandCircleRecord {
+            id: "CIRCLE_API_1".to_string(),
+            title: "Bulk Coffee Beans".to_string(),
+            category: "Commodities".to_string(),
+            target_unit_price_xlm: "10.0".to_string(),
+            min_volume: 100,
+            max_volume: 5000,
+            current_volume: 2500,
+            status: "OPEN".to_string(),
+            creator_address: "GCREATOR".to_string(),
+            deadline_timestamp: 1720000000,
+        }).unwrap();
+
+        repo.record_commitment(CommitmentRecord {
+            id: "COMMIT_1".to_string(),
+            circle_id: "CIRCLE_API_1".to_string(),
+            buyer_address: "GBUYER1".to_string(),
+            quantity: 2500,
+            committed_amount_xlm: "25000.0".to_string(),
+            escrow_tx_hash: Some("HASH123".to_string()),
+            status: "COMMITTED".to_string(),
+        }).unwrap();
+
+        repo.record_offer(SellerOfferRecord {
+            id: "OFFER_1".to_string(),
+            circle_id: "CIRCLE_API_1".to_string(),
+            seller_address: "GSELLER1".to_string(),
+            offered_unit_price_xlm: "9.5".to_string(),
+            available_volume: 5000,
+            lead_time_days: 7,
+            status: "PROPOSED".to_string(),
+        }).unwrap();
+
+        repo.record_reputation(SellerReputationRecord {
+            seller_address: "GSELLER1".to_string(),
+            successful_deals: 15,
+            total_volume_settled: 75000,
+            total_amount_settled_xlm: "750000.0".to_string(),
+            disputed_or_refunded_deals: 0,
+            score_percentage: 100,
+        }).unwrap();
+
+        repo.record_dispute(DisputeRecord {
+            id: "DISPUTE_1".to_string(),
+            circle_id: "CIRCLE_API_1".to_string(),
+            initiator_address: "GBUYER1".to_string(),
+            dispute_reason: "Non-delivery of cargo".to_string(),
+            status: "OPEN".to_string(),
+            resolution_refund_to_buyers: None,
+            opened_at_timestamp: 1720000100,
+            resolved_at_timestamp: None,
+        }).unwrap();
+
+        repo.update_last_ledger(105).unwrap();
+
+        let mut worker = IndexerWorker::new(IndexerConfig::local_testnet());
+        worker.on_poll_success(105, 5);
+
+        ApiServer::new(Box::new(repo), worker)
+    }
+
+    #[test]
+    fn test_server_dispatch_all_routes() {
+        let server = build_test_server();
+
+        // 1. GET /health
+        let req = HttpRequest {
+            method: HttpMethod::Get,
+            path: "/health".to_string(),
+            query: None,
+            headers: vec![],
+            body: vec![],
+        };
+        let resp = server.dispatch(&req);
+        assert_eq!(resp.status, HttpStatus::Ok);
+        let s = String::from_utf8(resp.body).unwrap();
+        assert!(s.contains("\"latest_ledger\":105"));
+
+        // 2. GET /metrics
+        let req = HttpRequest {
+            method: HttpMethod::Get,
+            path: "/metrics".to_string(),
+            query: None,
+            headers: vec![],
+            body: vec![],
+        };
+        let resp = server.dispatch(&req);
+        assert_eq!(resp.status, HttpStatus::Ok);
+        let s = String::from_utf8(resp.body).unwrap();
+        assert!(s.contains("bazaar_indexer_latest_ledger 105"));
+
+        // 3. GET /api/v1/circles
+        let req = HttpRequest {
+            method: HttpMethod::Get,
+            path: "/api/v1/circles".to_string(),
+            query: None,
+            headers: vec![],
+            body: vec![],
+        };
+        let resp = server.dispatch(&req);
+        assert_eq!(resp.status, HttpStatus::Ok);
+        let s = String::from_utf8(resp.body).unwrap();
+        assert!(s.contains("CIRCLE_API_1"));
+
+        // 4. GET /api/v1/circles/CIRCLE_API_1
+        let req = HttpRequest {
+            method: HttpMethod::Get,
+            path: "/api/v1/circles/CIRCLE_API_1".to_string(),
+            query: None,
+            headers: vec![],
+            body: vec![],
+        };
+        let resp = server.dispatch(&req);
+        assert_eq!(resp.status, HttpStatus::Ok);
+        let s = String::from_utf8(resp.body).unwrap();
+        assert!(s.contains("Bulk Coffee Beans"));
+
+        // 5. GET /api/v1/circles/CIRCLE_API_1/commitments
+        let req = HttpRequest {
+            method: HttpMethod::Get,
+            path: "/api/v1/circles/CIRCLE_API_1/commitments".to_string(),
+            query: None,
+            headers: vec![],
+            body: vec![],
+        };
+        let resp = server.dispatch(&req);
+        assert_eq!(resp.status, HttpStatus::Ok);
+        let s = String::from_utf8(resp.body).unwrap();
+        assert!(s.contains("GBUYER1"));
+
+        // 6. GET /api/v1/circles/CIRCLE_API_1/offers
+        let req = HttpRequest {
+            method: HttpMethod::Get,
+            path: "/api/v1/circles/CIRCLE_API_1/offers".to_string(),
+            query: None,
+            headers: vec![],
+            body: vec![],
+        };
+        let resp = server.dispatch(&req);
+        assert_eq!(resp.status, HttpStatus::Ok);
+        let s = String::from_utf8(resp.body).unwrap();
+        assert!(s.contains("GSELLER1"));
+
+        // 7. GET /api/v1/circles/CIRCLE_API_1/disputes
+        let req = HttpRequest {
+            method: HttpMethod::Get,
+            path: "/api/v1/circles/CIRCLE_API_1/disputes".to_string(),
+            query: None,
+            headers: vec![],
+            body: vec![],
+        };
+        let resp = server.dispatch(&req);
+        assert_eq!(resp.status, HttpStatus::Ok);
+        let s = String::from_utf8(resp.body).unwrap();
+        assert!(s.contains("Non-delivery of cargo"));
+
+        // 8. GET /api/v1/sellers/top
+        let req = HttpRequest {
+            method: HttpMethod::Get,
+            path: "/api/v1/sellers/top".to_string(),
+            query: None,
+            headers: vec![],
+            body: vec![],
+        };
+        let resp = server.dispatch(&req);
+        assert_eq!(resp.status, HttpStatus::Ok);
+        let s = String::from_utf8(resp.body).unwrap();
+        assert!(s.contains("GSELLER1"));
+
+        // 9. GET /api/v1/sellers/GSELLER1/reputation
+        let req = HttpRequest {
+            method: HttpMethod::Get,
+            path: "/api/v1/sellers/GSELLER1/reputation".to_string(),
+            query: None,
+            headers: vec![],
+            body: vec![],
+        };
+        let resp = server.dispatch(&req);
+        assert_eq!(resp.status, HttpStatus::Ok);
+        let s = String::from_utf8(resp.body).unwrap();
+        assert!(s.contains("\"successful_deals\":15"));
+
+        // 10. GET /api/v1/checkpoint
+        let req = HttpRequest {
+            method: HttpMethod::Get,
+            path: "/api/v1/checkpoint".to_string(),
+            query: None,
+            headers: vec![],
+            body: vec![],
+        };
+        let resp = server.dispatch(&req);
+        assert_eq!(resp.status, HttpStatus::Ok);
+        let s = String::from_utf8(resp.body).unwrap();
+        assert!(s.contains("\"last_ledger\":105"));
+
+        // 11. OPTIONS /api/v1/circles
+        let req = HttpRequest {
+            method: HttpMethod::Options,
+            path: "/api/v1/circles".to_string(),
+            query: None,
+            headers: vec![],
+            body: vec![],
+        };
+        let resp = server.dispatch(&req);
+        assert_eq!(resp.status, HttpStatus::NoContent);
+        assert!(resp.headers.iter().any(|(k, v)| k == "Access-Control-Allow-Methods" && v.contains("GET")));
+
+        // 12. Not found
+        let req = HttpRequest {
+            method: HttpMethod::Get,
+            path: "/nonexistent".to_string(),
+            query: None,
+            headers: vec![],
+            body: vec![],
+        };
+        let resp = server.dispatch(&req);
+        assert_eq!(resp.status, HttpStatus::NotFound);
+    }
+}
