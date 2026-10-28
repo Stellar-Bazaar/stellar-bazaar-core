@@ -722,3 +722,55 @@ fn test_dynamic_fee_settlement_to_custom_treasury() {
     // Net seller payout = 800_000_000 - 24_000_000 = 776_000_000 stroops
     assert_eq!(token_client.balance(&seller), 776_000_000);
 }
+
+#[test]
+fn test_buyer_surplus_rebate_lifecycle() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let creator = Address::generate(&env);
+    let buyer = Address::generate(&env);
+    let seller = Address::generate(&env);
+
+    let token_admin = Address::generate(&env);
+    let token_contract = env.register_stellar_asset_contract_v2(token_admin);
+    let token_client = token::Client::new(&env, &token_contract.address());
+    let token_admin_client = StellarAssetClient::new(&env, &token_contract.address());
+    token_admin_client.mint(&buyer, &100_000_000);
+
+    let contract_id = env.register(BazaarDealEngineContract, ());
+    let client = BazaarDealEngineContractClient::new(&env, &contract_id);
+    client.initialize(&admin);
+
+    // Target unit price: 10_000_000 stroops (1 XLM)
+    let circle_id = client.create_circle(
+        &creator,
+        &token_contract.address(),
+        &10_000_000,
+        &10,
+        &20,
+        &86400,
+    );
+
+    // Buyer commits 10 units = 100_000_000 stroops
+    client.commit_demand(&buyer, &circle_id, &10);
+    assert_eq!(token_client.balance(&buyer), 0);
+
+    // Attempting rebate before settlement fails
+    let err_premature = client.try_claim_surplus_rebate(&buyer, &circle_id);
+    assert_eq!(err_premature, Err(Ok(Error::CircleNotSettled)));
+
+    // Seller quotes discounted price: 8_000_000 stroops (0.8 XLM)
+    let offer_id = client.submit_seller_offer(&seller, &circle_id, &8_000_000, &10, &5);
+    client.accept_seller_offer(&creator, &circle_id, &offer_id);
+    client.settle_deal(&circle_id, &offer_id);
+
+    // Buyer claims rebate: 10 units * (10_000_000 - 8_000_000) = 20_000_000 stroops (2 XLM discount savings)
+    client.claim_surplus_rebate(&buyer, &circle_id);
+    assert_eq!(token_client.balance(&buyer), 20_000_000);
+
+    // Cannot claim rebate twice
+    let err_double = client.try_claim_surplus_rebate(&buyer, &circle_id);
+    assert_eq!(err_double, Err(Ok(Error::AlreadyClaimedRebate)));
+}
