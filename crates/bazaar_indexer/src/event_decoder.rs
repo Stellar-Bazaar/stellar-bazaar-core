@@ -165,3 +165,74 @@ pub fn decode_event(
         _ => Ok(None),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn test_decode_circle_create_event() {
+        let payload = json!({
+            "circle_id": 1,
+            "creator": "GBCREATOR",
+            "target_unit_price": 10000000,
+            "min_volume": 5,
+            "max_volume": 20,
+            "deadline": 1700086400
+        });
+
+        let event = decode_event("circle", "create", &payload).unwrap();
+        assert!(event.is_some());
+        match event.unwrap() {
+            BazaarContractEvent::CircleCreated { circle_id, creator, target_unit_price, min_volume, max_volume, deadline } => {
+                assert_eq!(circle_id, 1);
+                assert_eq!(creator, "GBCREATOR");
+                assert_eq!(target_unit_price, 10000000);
+                assert_eq!(min_volume, 5);
+                assert_eq!(max_volume, 20);
+                assert_eq!(deadline, 1700086400);
+            }
+            _ => panic!("Unexpected event variant"),
+        }
+    }
+
+    #[test]
+    fn test_decode_dispute_and_settlement_events() {
+        let dispute_payload = json!({
+            "circle_id": 42,
+            "caller": "GBUYER",
+            "reason": "WATER_DAMAGE"
+        });
+        let disp_event = decode_event("dispute", "opened", &dispute_payload).unwrap().unwrap();
+        match disp_event {
+            BazaarContractEvent::DisputeOpened { circle_id, caller, reason } => {
+                assert_eq!(circle_id, 42);
+                assert_eq!(caller, "GBUYER");
+                assert_eq!(reason, "WATER_DAMAGE");
+            }
+            _ => panic!("Expected DisputeOpened"),
+        }
+
+        let settle_payload = json!({
+            "circle_id": 42,
+            "winning_offer_id": 3,
+            "seller_payout": 450000000
+        });
+        let settle_event = decode_event("deal", "settled", &settle_payload).unwrap().unwrap();
+        match settle_event {
+            BazaarContractEvent::DealSettled { circle_id, winning_offer_id, seller_payout } => {
+                assert_eq!(circle_id, 42);
+                assert_eq!(winning_offer_id, 3);
+                assert_eq!(seller_payout, 450000000);
+            }
+            _ => panic!("Expected DealSettled"),
+        }
+    }
+
+    #[test]
+    fn test_unknown_event_returns_none() {
+        let payload = json!({});
+        assert_eq!(decode_event("unknown", "event", &payload).unwrap(), None);
+    }
+}
