@@ -420,3 +420,32 @@ fn test_e2e_premature_settlement_rejection() {
     let err = fix.deal_client.try_confirm_inspection_and_settle(&fix.creator, &circle_id);
     assert_eq!(err, Err(Ok(Error::NotUnderInspection)));
 }
+
+#[test]
+fn test_e2e_offer_price_exceeds_target_rejection() {
+    let env = Env::default();
+    let fix = E2EFixture::new(&env);
+
+    let circle_id = fix.deal_client.create_circle(
+        &fix.creator,
+        &fix.token_address,
+        &10_000_000, // 1.0 XLM ceiling
+        &10,
+        &50,
+        &86_400,
+    );
+
+    fix.deal_client.commit_demand(&fix.buyers[0], &circle_id, &5);
+    fix.deal_client.commit_demand(&fix.buyers[1], &circle_id, &5);
+
+    // Offer price 12_000_000 > target ceiling 10_000_000
+    let err = fix.deal_client.try_submit_seller_offer(
+        &fix.seller,
+        &circle_id,
+        &12_000_000,
+        &20,
+        &5,
+    );
+
+    assert_eq!(err, Err(Ok(Error::PriceExceedsTarget)));
+}
