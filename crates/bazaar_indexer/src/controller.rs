@@ -52,4 +52,14 @@ impl ApiController {
             Err(e) => HttpResponse::text(HttpStatus::InternalServerError, &e.to_string()),
         }
     }
+
+    /// GET /api/v1/circles/:id/offers - Returns all seller proposals for a circle
+    pub fn handle_get_offers(repo: &dyn BazaarRepository, id: &str) -> HttpResponse {
+        match repo.get_offers_for_circle(id) {
+            Ok(offers) => HttpResponse::json(HttpStatus::Ok, &offers).unwrap_or_else(|e| {
+                HttpResponse::text(HttpStatus::InternalServerError, &e.to_string())
+            }),
+            Err(e) => HttpResponse::text(HttpStatus::InternalServerError, &e.to_string()),
+        }
+    }
 }
