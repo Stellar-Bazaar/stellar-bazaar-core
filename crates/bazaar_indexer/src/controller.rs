@@ -42,4 +42,14 @@ impl ApiController {
             Err(e) => HttpResponse::text(HttpStatus::InternalServerError, &e.to_string()),
         }
     }
+
+    /// GET /api/v1/circles/:id/commitments - Returns all buyer commitments for a circle
+    pub fn handle_get_commitments(repo: &dyn BazaarRepository, id: &str) -> HttpResponse {
+        match repo.get_commitments_for_circle(id) {
+            Ok(commitments) => HttpResponse::json(HttpStatus::Ok, &commitments).unwrap_or_else(|e| {
+                HttpResponse::text(HttpStatus::InternalServerError, &e.to_string())
+            }),
+            Err(e) => HttpResponse::text(HttpStatus::InternalServerError, &e.to_string()),
+        }
+    }
 }
