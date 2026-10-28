@@ -1153,3 +1153,6 @@ impl BazaarDealEngineContract {
 
 #[cfg(test)]
 mod test;
+
+#[cfg(test)]
+mod e2e_tests;
