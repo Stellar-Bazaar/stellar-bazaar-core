@@ -5,6 +5,7 @@ pub mod sqlite_repository;
 pub mod event_decoder;
 pub mod config;
 pub mod state;
+pub mod rpc_client;
 
 use domain::*;
 use thiserror::Error;
