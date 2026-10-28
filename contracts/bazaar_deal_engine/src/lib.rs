@@ -54,6 +54,12 @@ pub enum Error {
     PriceExceedsTarget = 19,
     DuplicateOffer = 20,
     NotUnderInspection = 21,
+    DisputeAlreadyOpen = 22,
+    DisputeNotOpen = 23,
+    DisputeUnauthorized = 24,
+    InvalidFeeBps = 25,
+    NoSurplusRebate = 26,
+    AlreadyClaimedRebate = 27,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -64,6 +70,7 @@ pub enum CircleStatus {
     Settled = 2,
     Cancelled = 3,
     Inspection = 4,
+    Disputed = 5,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
