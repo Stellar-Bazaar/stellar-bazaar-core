@@ -55,6 +55,8 @@ pub struct InMemoryBazaarRepository {
     pub offers: Vec<SellerOfferRecord>,
     pub settlements: Vec<SettlementRecord>,
     pub reputations: Vec<SellerReputationRecord>,
+    pub disputes: Vec<DisputeRecord>,
+    pub protocol_fees: Vec<ProtocolFeeRecord>,
     pub last_ledger: u64,
 }
 
@@ -117,6 +119,26 @@ impl BazaarRepository for InMemoryBazaarRepository {
     fn update_last_ledger(&mut self, ledger: u64) -> Result<(), IndexerError> {
         self.last_ledger = ledger;
         Ok(())
+    }
+
+    fn record_dispute(&mut self, dispute: DisputeRecord) -> Result<(), IndexerError> {
+        self.disputes.retain(|d| d.id != dispute.id);
+        self.disputes.push(dispute);
+        Ok(())
+    }
+
+    fn get_disputes_for_circle(&self, circle_id: &str) -> Result<Vec<DisputeRecord>, IndexerError> {
+        Ok(self.disputes.iter().filter(|d| d.circle_id == circle_id).cloned().collect())
+    }
+
+    fn record_protocol_fee(&mut self, fee: ProtocolFeeRecord) -> Result<(), IndexerError> {
+        self.protocol_fees.retain(|f| f.id != fee.id);
+        self.protocol_fees.push(fee);
+        Ok(())
+    }
+
+    fn get_protocol_fees_for_circle(&self, circle_id: &str) -> Result<Vec<ProtocolFeeRecord>, IndexerError> {
+        Ok(self.protocol_fees.iter().filter(|f| f.circle_id == circle_id).cloned().collect())
     }
 }
 
