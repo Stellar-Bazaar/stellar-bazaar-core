@@ -1,4 +1,4 @@
-.PHONY: all build test lint fmt audit clean doc deploy-testnet help
+.PHONY: all build test lint fmt audit clean doc deploy-testnet simulate-dispute indexer-test indexer-run help
 
 # Default target
 all: test
@@ -15,6 +15,9 @@ help:
 	@echo "  make doc             - Generate offline Rust documentation"
 	@echo "  make clean           - Remove build artifacts and caches"
 	@echo "  make deploy-testnet  - Deploy contracts to Stellar Testnet"
+	@echo "  make simulate-dispute - Execute dispute resolution lifecycle simulation"
+	@echo "  make indexer-test    - Run Soroban event indexer test suite"
+	@echo "  make indexer-run     - Run indexer daemon dry run validation"
 
 build:
 	cargo build --workspace --all-targets
@@ -48,3 +51,9 @@ deploy-testnet:
 
 simulate-dispute:
 	powershell -ExecutionPolicy Bypass -File ./scripts/simulate_dispute_flow.ps1
+
+indexer-test:
+	cargo test -p bazaar-indexer -- --nocapture
+
+indexer-run:
+	cargo run -p bazaar-indexer -- --dry-run
