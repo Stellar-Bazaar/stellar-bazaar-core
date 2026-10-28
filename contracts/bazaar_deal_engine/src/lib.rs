@@ -141,6 +141,8 @@ pub enum DataKey {
     Commitment(u64, Address),
     Offer(u64),
     SellerReputation(Address),
+    Treasury,
+    ProtocolFeeBps,
 }
 
 #[contract]
@@ -154,6 +156,8 @@ impl BazaarDealEngineContract {
             return Err(Error::AlreadyInitialized);
         }
         env.storage().instance().set(&DataKey::Admin, &admin);
+        env.storage().instance().set(&DataKey::Treasury, &admin);
+        env.storage().instance().set(&DataKey::ProtocolFeeBps, &100u32);
         env.storage().instance().set(&DataKey::CircleCounter, &0u64);
         env.storage().instance().set(&DataKey::OfferCounter, &0u64);
         env.storage()
@@ -987,6 +991,68 @@ impl BazaarDealEngineContract {
                 total_amount_settled: 0,
                 disputed_or_refunded_deals: 0,
             })
+    }
+
+    /// Update the protocol fee in basis points (max 1,000 bps / 10%).
+    pub fn set_protocol_fee(env: Env, caller: Address, fee_bps: u32) -> Result<(), Error> {
+        caller.require_auth();
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .ok_or(Error::NotInitialized)?;
+        if caller != admin {
+            return Err(Error::Unauthorized);
+        }
+        if fee_bps > 1_000 {
+            return Err(Error::InvalidFeeBps);
+        }
+        env.storage()
+            .instance()
+            .set(&DataKey::ProtocolFeeBps, &fee_bps);
+        env.storage()
+            .instance()
+            .extend_ttl(INSTANCE_TTL_THRESHOLD, INSTANCE_TTL_EXTEND_TO);
+        env.events().publish(
+            (symbol_short!("fee"), symbol_short!("update")),
+            (caller, fee_bps),
+        );
+        Ok(())
+    }
+
+    /// Update the protocol treasury address.
+    pub fn set_treasury(env: Env, caller: Address, treasury: Address) -> Result<(), Error> {
+        caller.require_auth();
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .ok_or(Error::NotInitialized)?;
+        if caller != admin {
+            return Err(Error::Unauthorized);
+        }
+        env.storage().instance().set(&DataKey::Treasury, &treasury);
+        env.storage()
+            .instance()
+            .extend_ttl(INSTANCE_TTL_THRESHOLD, INSTANCE_TTL_EXTEND_TO);
+        env.events().publish(
+            (symbol_short!("treasury"), symbol_short!("update")),
+            (caller, treasury),
+        );
+        Ok(())
+    }
+
+    /// Returns the currently active protocol fee in basis points.
+    pub fn get_protocol_fee_bps(env: Env) -> u32 {
+        env.storage()
+            .instance()
+            .get(&DataKey::ProtocolFeeBps)
+            .unwrap_or(0)
+    }
+
+    /// Returns the active protocol treasury address if configured.
+    pub fn get_treasury(env: Env) -> Option<Address> {
+        env.storage().instance().get(&DataKey::Treasury)
     }
 }
 
