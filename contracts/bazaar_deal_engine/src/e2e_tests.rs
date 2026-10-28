@@ -353,3 +353,34 @@ fn test_e2e_double_claim_rebate_protection() {
     let err = fix.deal_client.try_claim_surplus_rebate(&fix.buyers[0], &circle_id);
     assert_eq!(err, Err(Ok(Error::AlreadyClaimedRebate)));
 }
+
+#[test]
+fn test_e2e_expired_circle_refund() {
+    use soroban_sdk::testutils::Ledger as _;
+
+    let env = Env::default();
+    let fix = E2EFixture::new(&env);
+
+    let circle_id = fix.deal_client.create_circle(
+        &fix.creator,
+        &fix.token_address,
+        &10_000_000,
+        &10,
+        &50,
+        &100, // 100 seconds
+    );
+
+    // Buyer 0 commits 3 units (30_000_000 stroops). Quorum not reached.
+    fix.deal_client.commit_demand(&fix.buyers[0], &circle_id, &3);
+    assert_eq!(fix.token_client.balance(&fix.buyers[0]), 970_000_000);
+
+    // Fast-forward ledger timestamp past circle deadline
+    env.ledger().set_timestamp(env.ledger().timestamp() + 500);
+
+    // Buyer claims refund
+    fix.deal_client.claim_refund(&fix.buyers[0], &circle_id);
+
+    // Buyer receives full 30_000_000 stroops back
+    assert_eq!(fix.token_client.balance(&fix.buyers[0]), 1_000_000_000);
+    assert_eq!(fix.token_client.balance(&fix.contract_id), 0);
+}
