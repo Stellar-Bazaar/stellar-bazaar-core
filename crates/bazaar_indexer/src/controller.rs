@@ -93,4 +93,18 @@ impl ApiController {
             Err(e) => HttpResponse::text(HttpStatus::InternalServerError, &e.to_string()),
         }
     }
+
+    /// GET /api/v1/checkpoint - Returns latest processed ledger sequence checkpoint
+    pub fn handle_get_checkpoint(repo: &dyn BazaarRepository) -> HttpResponse {
+        #[derive(serde::Serialize)]
+        struct CheckpointResp {
+            last_ledger: u64,
+        }
+        match repo.get_last_ledger() {
+            Ok(last_ledger) => HttpResponse::json(HttpStatus::Ok, &CheckpointResp { last_ledger }).unwrap_or_else(|e| {
+                HttpResponse::text(HttpStatus::InternalServerError, &e.to_string())
+            }),
+            Err(e) => HttpResponse::text(HttpStatus::InternalServerError, &e.to_string()),
+        }
+    }
 }
