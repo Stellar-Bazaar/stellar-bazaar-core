@@ -62,4 +62,14 @@ impl ApiController {
             Err(e) => HttpResponse::text(HttpStatus::InternalServerError, &e.to_string()),
         }
     }
+
+    /// GET /api/v1/circles/:id/disputes - Returns all dispute records for a circle
+    pub fn handle_get_disputes(repo: &dyn BazaarRepository, id: &str) -> HttpResponse {
+        match repo.get_disputes_for_circle(id) {
+            Ok(disputes) => HttpResponse::json(HttpStatus::Ok, &disputes).unwrap_or_else(|e| {
+                HttpResponse::text(HttpStatus::InternalServerError, &e.to_string())
+            }),
+            Err(e) => HttpResponse::text(HttpStatus::InternalServerError, &e.to_string()),
+        }
+    }
 }
