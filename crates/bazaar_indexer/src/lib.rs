@@ -4,6 +4,7 @@ pub mod event_filter;
 pub mod sqlite_repository;
 pub mod event_decoder;
 pub mod config;
+pub mod state;
 
 use domain::*;
 use thiserror::Error;
