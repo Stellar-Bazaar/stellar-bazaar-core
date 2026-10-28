@@ -60,7 +60,25 @@ impl BazaarRepository for SqliteBazaarRepository {
         Ok(())
     }
 
-    fn record_commitment(&mut self, _commitment: CommitmentRecord) -> Result<(), IndexerError> {
+    fn record_commitment(&mut self, commitment: CommitmentRecord) -> Result<(), IndexerError> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            r#"INSERT INTO buyer_commitments (
+                id, circle_id, buyer_address, quantity, committed_amount_xlm, escrow_tx_hash, status
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+            ON CONFLICT(id) DO UPDATE SET
+                status = excluded.status,
+                escrow_tx_hash = excluded.escrow_tx_hash"#,
+            params![
+                commitment.id,
+                commitment.circle_id,
+                commitment.buyer_address,
+                commitment.quantity,
+                commitment.committed_amount_xlm,
+                commitment.escrow_tx_hash,
+                commitment.status,
+            ],
+        ).map_err(|e| IndexerError::Database(e.to_string()))?;
         Ok(())
     }
 
@@ -106,8 +124,30 @@ impl BazaarRepository for SqliteBazaarRepository {
         Ok(Vec::new())
     }
 
-    fn get_commitments_for_circle(&self, _circle_id: &str) -> Result<Vec<CommitmentRecord>, IndexerError> {
-        Ok(Vec::new())
+    fn get_commitments_for_circle(&self, circle_id: &str) -> Result<Vec<CommitmentRecord>, IndexerError> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            r#"SELECT id, circle_id, buyer_address, quantity, committed_amount_xlm, escrow_tx_hash, status
+               FROM buyer_commitments WHERE circle_id = ?1 ORDER BY created_at ASC"#
+        ).map_err(|e| IndexerError::Database(e.to_string()))?;
+
+        let rows = stmt.query_map(params![circle_id], |row| {
+            Ok(CommitmentRecord {
+                id: row.get(0)?,
+                circle_id: row.get(1)?,
+                buyer_address: row.get(2)?,
+                quantity: row.get(3)?,
+                committed_amount_xlm: row.get(4)?,
+                escrow_tx_hash: row.get(5)?,
+                status: row.get(6)?,
+            })
+        }).map_err(|e| IndexerError::Database(e.to_string()))?;
+
+        let mut commitments = Vec::new();
+        for commitment in rows {
+            commitments.push(commitment.map_err(|e| IndexerError::Database(e.to_string()))?);
+        }
+        Ok(commitments)
     }
 
     fn get_seller_reputation(&self, _seller: &str) -> Result<Option<SellerReputationRecord>, IndexerError> {
