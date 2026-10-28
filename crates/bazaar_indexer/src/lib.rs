@@ -2,6 +2,7 @@ pub mod schema;
 pub mod domain;
 pub mod event_filter;
 pub mod sqlite_repository;
+pub mod event_decoder;
 
 use domain::*;
 use thiserror::Error;
