@@ -72,4 +72,14 @@ impl ApiController {
             Err(e) => HttpResponse::text(HttpStatus::InternalServerError, &e.to_string()),
         }
     }
+
+    /// GET /api/v1/sellers/top - Returns top-performing sellers ranked by completed deals
+    pub fn handle_list_top_sellers(repo: &dyn BazaarRepository, limit: usize) -> HttpResponse {
+        match repo.list_top_sellers(limit) {
+            Ok(sellers) => HttpResponse::json(HttpStatus::Ok, &sellers).unwrap_or_else(|e| {
+                HttpResponse::text(HttpStatus::InternalServerError, &e.to_string())
+            }),
+            Err(e) => HttpResponse::text(HttpStatus::InternalServerError, &e.to_string()),
+        }
+    }
 }
