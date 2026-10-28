@@ -635,3 +635,41 @@ fn test_dispute_resolution_with_seller_settlement() {
     assert_eq!(rep.successful_deals, 1);
     assert_eq!(rep.disputed_or_refunded_deals, 0);
 }
+
+#[test]
+fn test_protocol_fee_configuration_and_role_guards() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let unauthorized = Address::generate(&env);
+    let new_treasury = Address::generate(&env);
+
+    let contract_id = env.register(BazaarDealEngineContract, ());
+    let client = BazaarDealEngineContractClient::new(&env, &contract_id);
+    client.initialize(&admin);
+
+    // Initial default: 100 bps (1.00%), treasury = admin
+    assert_eq!(client.get_protocol_fee_bps(), 100);
+    assert_eq!(client.get_treasury(), Some(admin.clone()));
+
+    // Unauthorized user cannot change fee
+    let unauth_fee = client.try_set_protocol_fee(&unauthorized, &200);
+    assert_eq!(unauth_fee, Err(Ok(Error::Unauthorized)));
+
+    // Fee exceeding 1000 bps (10%) is rejected
+    let excess_fee = client.try_set_protocol_fee(&admin, &1001);
+    assert_eq!(excess_fee, Err(Ok(Error::InvalidFeeBps)));
+
+    // Admin updates fee to 250 bps (2.50%)
+    client.set_protocol_fee(&admin, &250);
+    assert_eq!(client.get_protocol_fee_bps(), 250);
+
+    // Unauthorized user cannot change treasury
+    let unauth_treasury = client.try_set_treasury(&unauthorized, &new_treasury);
+    assert_eq!(unauth_treasury, Err(Ok(Error::Unauthorized)));
+
+    // Admin updates treasury
+    client.set_treasury(&admin, &new_treasury);
+    assert_eq!(client.get_treasury(), Some(new_treasury));
+}
