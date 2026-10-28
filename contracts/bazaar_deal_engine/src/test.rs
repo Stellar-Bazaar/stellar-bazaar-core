@@ -94,8 +94,10 @@ fn test_demand_circle_lifecycle_and_settlement() {
     let winning_offer = client.get_offer(&offer_id);
     assert_eq!(winning_offer.status, OfferStatus::Accepted);
 
-    // Verify seller received payout
-    assert_eq!(token_client.balance(&seller), 57_000_000);
+    // Verify seller received net payout (57_000_000 - 1% protocol fee 570_000 = 56_430_000)
+    assert_eq!(token_client.balance(&seller), 56_430_000);
+    // Verify protocol treasury received fee
+    assert_eq!(token_client.balance(&admin), 570_000);
 
     // Verify verifiable seller reputation record was updated on-chain
     let rep = client.get_seller_reputation(&seller);
@@ -471,6 +473,56 @@ fn test_deal_inspection_lifecycle_and_settlement() {
     let circle_settled = client.get_circle(&circle_id);
     assert_eq!(circle_settled.status, CircleStatus::Settled);
 
-    // Verify seller received 45_000_000 stroops (5 units * 9_000_000)
-    assert_eq!(token_client.balance(&seller), 45_000_000);
+    // Verify seller received 44_550_000 stroops (45_000_000 gross minus 1% fee 450_000)
+    assert_eq!(token_client.balance(&seller), 44_550_000);
+    // Verify admin treasury received protocol fee
+    assert_eq!(token_client.balance(&admin), 450_000);
+}
+
+#[test]
+fn test_dispute_deal_initiation_and_authorization_guards() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let creator = Address::generate(&env);
+    let buyer = Address::generate(&env);
+    let stranger = Address::generate(&env);
+    let seller = Address::generate(&env);
+
+    let token_admin = Address::generate(&env);
+    let token_contract = env.register_stellar_asset_contract_v2(token_admin);
+    let token_admin_client = StellarAssetClient::new(&env, &token_contract.address());
+    token_admin_client.mint(&buyer, &100_000_000);
+
+    let contract_id = env.register(BazaarDealEngineContract, ());
+    let client = BazaarDealEngineContractClient::new(&env, &contract_id);
+    client.initialize(&admin);
+
+    let circle_id = client.create_circle(
+        &creator,
+        &token_contract.address(),
+        &10_000_000,
+        &5,
+        &20,
+        &86400,
+    );
+
+    client.commit_demand(&buyer, &circle_id, &5);
+    let offer_id = client.submit_seller_offer(&seller, &circle_id, &9_000_000, &10, &3);
+    client.accept_seller_offer(&creator, &circle_id, &offer_id);
+    client.initiate_inspection(&creator, &circle_id, &86400);
+
+    // Stranger without commitment cannot file dispute
+    let unauth_dispute = client.try_dispute_deal(&stranger, &circle_id, &Symbol::new(&env, "DEFECT"));
+    assert_eq!(unauth_dispute, Err(Ok(Error::DisputeUnauthorized)));
+
+    // Committed buyer can file dispute
+    client.dispute_deal(&buyer, &circle_id, &Symbol::new(&env, "DAMAGED_GOODS"));
+    let circle = client.get_circle(&circle_id);
+    assert_eq!(circle.status, CircleStatus::Disputed);
+
+    // Cannot file dispute again while already disputed
+    let dup_dispute = client.try_dispute_deal(&creator, &circle_id, &Symbol::new(&env, "LATE"));
+    assert_eq!(dup_dispute, Err(Ok(Error::DisputeAlreadyOpen)));
 }
