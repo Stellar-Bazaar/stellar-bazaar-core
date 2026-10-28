@@ -68,3 +68,60 @@ impl ApiRoute {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_router_path_matching() {
+        assert_eq!(
+            ApiRoute::match_request(&HttpMethod::Get, "/health"),
+            ApiRoute::Health
+        );
+        assert_eq!(
+            ApiRoute::match_request(&HttpMethod::Get, "/metrics"),
+            ApiRoute::Metrics
+        );
+        assert_eq!(
+            ApiRoute::match_request(&HttpMethod::Get, "/api/v1/circles/"),
+            ApiRoute::ListCircles
+        );
+        assert_eq!(
+            ApiRoute::match_request(&HttpMethod::Get, "/api/v1/circles/CIRCLE_42"),
+            ApiRoute::GetCircle { id: "CIRCLE_42".to_string() }
+        );
+        assert_eq!(
+            ApiRoute::match_request(&HttpMethod::Get, "/api/v1/circles/CIRCLE_42/commitments"),
+            ApiRoute::GetCircleCommitments { id: "CIRCLE_42".to_string() }
+        );
+        assert_eq!(
+            ApiRoute::match_request(&HttpMethod::Get, "/api/v1/circles/CIRCLE_42/offers"),
+            ApiRoute::GetCircleOffers { id: "CIRCLE_42".to_string() }
+        );
+        assert_eq!(
+            ApiRoute::match_request(&HttpMethod::Get, "/api/v1/circles/CIRCLE_42/disputes"),
+            ApiRoute::GetCircleDisputes { id: "CIRCLE_42".to_string() }
+        );
+        assert_eq!(
+            ApiRoute::match_request(&HttpMethod::Get, "/api/v1/sellers/top"),
+            ApiRoute::ListTopSellers
+        );
+        assert_eq!(
+            ApiRoute::match_request(&HttpMethod::Get, "/api/v1/sellers/GBSELLER123/reputation"),
+            ApiRoute::GetSellerReputation { seller: "GBSELLER123".to_string() }
+        );
+        assert_eq!(
+            ApiRoute::match_request(&HttpMethod::Get, "/api/v1/checkpoint"),
+            ApiRoute::GetCheckpoint
+        );
+        assert_eq!(
+            ApiRoute::match_request(&HttpMethod::Options, "/api/v1/circles"),
+            ApiRoute::OptionsPreflight
+        );
+        assert_eq!(
+            ApiRoute::match_request(&HttpMethod::Get, "/unknown/endpoint"),
+            ApiRoute::NotFound
+        );
+    }
+}
