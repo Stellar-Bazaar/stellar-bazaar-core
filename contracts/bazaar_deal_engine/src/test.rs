@@ -673,3 +673,52 @@ fn test_protocol_fee_configuration_and_role_guards() {
     client.set_treasury(&admin, &new_treasury);
     assert_eq!(client.get_treasury(), Some(new_treasury));
 }
+
+#[test]
+fn test_dynamic_fee_settlement_to_custom_treasury() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let creator = Address::generate(&env);
+    let buyer = Address::generate(&env);
+    let seller = Address::generate(&env);
+    let protocol_treasury = Address::generate(&env);
+
+    let token_admin = Address::generate(&env);
+    let token_contract = env.register_stellar_asset_contract_v2(token_admin);
+    let token_client = token::Client::new(&env, &token_contract.address());
+    let token_admin_client = StellarAssetClient::new(&env, &token_contract.address());
+    // Mint 100 XLM = 1_000_000_000 stroops to buyer
+    token_admin_client.mint(&buyer, &1_000_000_000);
+
+    let contract_id = env.register(BazaarDealEngineContract, ());
+    let client = BazaarDealEngineContractClient::new(&env, &contract_id);
+    client.initialize(&admin);
+
+    // Set 300 bps (3.00%) fee and custom treasury address
+    client.set_protocol_fee(&admin, &300);
+    client.set_treasury(&admin, &protocol_treasury);
+
+    // Circle: 10 units @ 10 XLM (100_000_000 stroops/unit)
+    let circle_id = client.create_circle(
+        &creator,
+        &token_contract.address(),
+        &100_000_000,
+        &10,
+        &20,
+        &86400,
+    );
+
+    client.commit_demand(&buyer, &circle_id, &10);
+
+    // Seller offers 8 XLM (80_000_000 stroops/unit) for 10 units -> Gross payout = 800_000_000 stroops
+    let offer_id = client.submit_seller_offer(&seller, &circle_id, &80_000_000, &10, &5);
+    client.accept_seller_offer(&creator, &circle_id, &offer_id);
+    client.settle_deal(&circle_id, &offer_id);
+
+    // 3% of 800_000_000 = 24_000_000 stroops
+    assert_eq!(token_client.balance(&protocol_treasury), 24_000_000);
+    // Net seller payout = 800_000_000 - 24_000_000 = 776_000_000 stroops
+    assert_eq!(token_client.balance(&seller), 776_000_000);
+}
