@@ -119,4 +119,46 @@ mod tests {
         assert_eq!(calculate_quorum_pct(0, 100).unwrap(), 0);
         assert!(calculate_quorum_pct(50, 0).is_err());
     }
+
+    #[test]
+    fn test_calculate_net_payout() {
+        // 100 XLM gross (1_000_000_000 stroops), 100 bps (1.00%) fee
+        let (net, fee) = calculate_net_payout(1_000_000_000, 100).unwrap();
+        assert_eq!(fee, 10_000_000); // 1 XLM
+        assert_eq!(net, 990_000_000); // 99 XLM
+
+        // Zero fee
+        let (net0, fee0) = calculate_net_payout(500_000_000, 0).unwrap();
+        assert_eq!(fee0, 0);
+        assert_eq!(net0, 500_000_000);
+
+        // Maximum fee (10,000 bps = 100%)
+        let (net_max, fee_max) = calculate_net_payout(100_000_000, 10_000).unwrap();
+        assert_eq!(fee_max, 100_000_000);
+        assert_eq!(net_max, 0);
+
+        // Negative gross amount should fail
+        assert!(calculate_net_payout(-100, 100).is_err());
+        // Fee bps exceeding 10_000 should fail
+        assert!(calculate_net_payout(100, 10_001).is_err());
+    }
+
+    #[test]
+    fn test_calculate_surplus_rebate() {
+        // Target: 10 XLM (100_000_000 stroops), Accepted: 9 XLM (90_000_000 stroops)
+        // Quantity: 5 units. Rebate per unit: 10_000_000 stroops. Total: 50_000_000 stroops (5 XLM)
+        let rebate = calculate_surplus_rebate(100_000_000, 90_000_000, 5).unwrap();
+        assert_eq!(rebate, 50_000_000);
+
+        // Equal prices: rebate is 0
+        let zero_rebate = calculate_surplus_rebate(100_000_000, 100_000_000, 10).unwrap();
+        assert_eq!(zero_rebate, 0);
+
+        // Zero quantity: rebate is 0
+        let zero_qty = calculate_surplus_rebate(100_000_000, 80_000_000, 0).unwrap();
+        assert_eq!(zero_qty, 0);
+
+        // Accepted price higher than target price should fail
+        assert!(calculate_surplus_rebate(90_000_000, 100_000_000, 5).is_err());
+    }
 }
