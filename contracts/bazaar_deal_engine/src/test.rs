@@ -303,3 +303,113 @@ fn test_seller_offer_validation_and_cancellation_refund() {
     client.claim_refund(&buyer, &circle_id);
     assert_eq!(token_client.balance(&buyer), 50_000_000);
 }
+
+
+#[test]
+fn test_deal_creation_zero_target_volume_fails() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let creator = Address::generate(&env);
+
+    let token_admin = Address::generate(&env);
+    let token_contract = env.register_stellar_asset_contract_v2(token_admin);
+
+    let contract_id = env.register(BazaarDealEngineContract, ());
+    let client = BazaarDealEngineContractClient::new(&env, &contract_id);
+    client.initialize(&admin);
+
+    // min_volume = 0 should return Err(Error::InvalidVolume)
+    let res_zero_vol = client.try_create_circle(
+        &creator,
+        &token_contract.address(),
+        &10_000_000,
+        &0, // invalid 0 volume
+        &10,
+        &86400,
+    );
+    assert_eq!(res_zero_vol, Err(Ok(Error::InvalidVolume)));
+}
+
+#[test]
+fn test_duplicate_seller_offer_rejection() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let creator = Address::generate(&env);
+    let seller = Address::generate(&env);
+
+    let token_admin = Address::generate(&env);
+    let token_contract = env.register_stellar_asset_contract_v2(token_admin);
+
+    let contract_id = env.register(BazaarDealEngineContract, ());
+    let client = BazaarDealEngineContractClient::new(&env, &contract_id);
+    client.initialize(&admin);
+
+    let circle_id = client.create_circle(
+        &creator,
+        &token_contract.address(),
+        &10_000_000,
+        &5,
+        &20,
+        &86400,
+    );
+
+    // Initial offer from seller
+    let offer_id = client.submit_seller_offer(&seller, &circle_id, &9_000_000, &10, &5);
+    assert_eq!(offer_id, 1);
+
+    // Second active offer from the same seller for the same circle should be rejected as DuplicateOffer
+    let dup_offer = client.try_submit_seller_offer(&seller, &circle_id, &8_500_000, &10, &4);
+    assert_eq!(dup_offer, Err(Ok(Error::DuplicateOffer)));
+}
+
+#[test]
+fn test_buyer_refund_on_creator_cancellation() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let creator = Address::generate(&env);
+    let buyer = Address::generate(&env);
+
+    let token_admin = Address::generate(&env);
+    let token_contract = env.register_stellar_asset_contract_v2(token_admin);
+    let token_client = token::Client::new(&env, &token_contract.address());
+    let token_admin_client = StellarAssetClient::new(&env, &token_contract.address());
+    token_admin_client.mint(&buyer, &80_000_000);
+
+    let contract_id = env.register(BazaarDealEngineContract, ());
+    let client = BazaarDealEngineContractClient::new(&env, &contract_id);
+    client.initialize(&admin);
+
+    let circle_id = client.create_circle(
+        &creator,
+        &token_contract.address(),
+        &10_000_000,
+        &5,
+        &20,
+        &86400,
+    );
+
+    // Buyer commits 4 units = 40_000_000 stroops
+    client.commit_demand(&buyer, &circle_id, &4);
+    assert_eq!(token_client.balance(&buyer), 40_000_000);
+    assert_eq!(token_client.balance(&contract_id), 40_000_000);
+
+    // Creator cancels the circle
+    client.cancel_circle(&creator, &circle_id);
+    let circle = client.get_circle(&circle_id);
+    assert_eq!(circle.status, CircleStatus::Cancelled);
+
+    // Buyer claims refund and gets 100% of escrow back
+    client.claim_refund(&buyer, &circle_id);
+    assert_eq!(token_client.balance(&buyer), 80_000_000);
+    assert_eq!(token_client.balance(&contract_id), 0);
+
+    // Cannot claim refund a second time
+    let repeat_refund = client.try_claim_refund(&buyer, &circle_id);
+    assert_eq!(repeat_refund, Err(Ok(Error::AlreadyRefunded)));
+}
