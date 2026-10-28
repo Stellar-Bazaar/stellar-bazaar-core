@@ -2,6 +2,7 @@ use crate::health::HealthChecker;
 use crate::http::{HttpResponse, HttpStatus};
 use crate::metrics::PrometheusExporter;
 use crate::state::IndexerDaemonState;
+use crate::BazaarRepository;
 
 /// REST controller handling inbound HTTP requests against indexer daemon
 pub struct ApiController;
@@ -19,5 +20,15 @@ impl ApiController {
     pub fn handle_metrics(state: &IndexerDaemonState, consecutive_errors: u32) -> HttpResponse {
         let metrics = PrometheusExporter::render(state, consecutive_errors);
         HttpResponse::text(HttpStatus::Ok, &metrics)
+    }
+
+    /// GET /api/v1/circles - Returns list of active demand circles
+    pub fn handle_list_circles(repo: &dyn BazaarRepository) -> HttpResponse {
+        match repo.list_active_circles() {
+            Ok(circles) => HttpResponse::json(HttpStatus::Ok, &circles).unwrap_or_else(|e| {
+                HttpResponse::text(HttpStatus::InternalServerError, &e.to_string())
+            }),
+            Err(e) => HttpResponse::text(HttpStatus::InternalServerError, &e.to_string()),
+        }
     }
 }
