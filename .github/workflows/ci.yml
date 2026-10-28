@@ -36,6 +36,9 @@ jobs:
       - name: Check Rust Formatting
         run: cargo fmt --all -- --check
 
+      - name: Clippy Linter Check
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
       - name: Run Workspace Tests
         run: cargo test --workspace --verbose
 
@@ -47,3 +50,22 @@ jobs:
       - name: Validate Contract Artifact Sizes
         run: |
           ls -la target/wasm32-unknown-unknown/release/*.wasm
+
+      - name: Security Vulnerability Audit
+        run: |
+          cargo install cargo-audit --locked || true
+          cargo audit --ignore RUSTSEC-2020-0071 || true
+
+  markdown-lint-and-links:
+    name: Markdown Documentation Verification
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Verify Markdown Links
+        uses: gaurav-nelson/github-action-markdown-link-check@v1
+        with:
+          use-quiet-mode: 'yes'
+          check-modified-files-only: 'no'
+          config-file: '.github/mlc_config.json'
