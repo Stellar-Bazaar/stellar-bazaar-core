@@ -12,6 +12,7 @@ pub mod worker;
 pub mod health;
 pub mod metrics;
 pub mod http;
+pub mod router;
 
 use domain::*;
 use thiserror::Error;
