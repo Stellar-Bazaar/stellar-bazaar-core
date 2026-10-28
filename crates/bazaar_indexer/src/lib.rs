@@ -164,7 +164,7 @@ impl BazaarRepository for InMemoryBazaarRepository {
 
     fn list_top_sellers(&self, limit: usize) -> Result<Vec<SellerReputationRecord>, IndexerError> {
         let mut sorted = self.reputations.clone();
-        sorted.sort_by(|a, b| b.successful_deals.cmp(&a.successful_deals));
+        sorted.sort_by_key(|a| std::cmp::Reverse(a.successful_deals));
         sorted.truncate(limit);
         Ok(sorted)
     }
