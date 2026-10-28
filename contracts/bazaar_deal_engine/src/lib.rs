@@ -5,6 +5,11 @@ use soroban_sdk::{
     Address, Env, String, Vec,
 };
 
+/// Minimum ledgers remaining before instance TTL is extended (~1 day at 5s/ledger).
+pub const INSTANCE_TTL_THRESHOLD: u32 = 17_280;
+/// Amount of ledgers to extend instance TTL to (~30 days at 5s/ledger).
+pub const INSTANCE_TTL_EXTEND_TO: u32 = 518_400;
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[contracttype]
 pub struct ExternalCircleRecord {
@@ -47,6 +52,7 @@ pub enum Error {
     VolumeExceeded = 17,
     RegistryError = 18,
     PriceExceedsTarget = 19,
+    DuplicateOffer = 20,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -141,6 +147,9 @@ impl BazaarDealEngineContract {
         env.storage().instance().set(&DataKey::Admin, &admin);
         env.storage().instance().set(&DataKey::CircleCounter, &0u64);
         env.storage().instance().set(&DataKey::OfferCounter, &0u64);
+        env.storage()
+            .instance()
+            .extend_ttl(INSTANCE_TTL_THRESHOLD, INSTANCE_TTL_EXTEND_TO);
         Ok(())
     }
 
@@ -198,6 +207,9 @@ impl BazaarDealEngineContract {
         env.storage()
             .instance()
             .set(&DataKey::CircleOffers(circle_counter), &empty_offers);
+        env.storage()
+            .instance()
+            .extend_ttl(INSTANCE_TTL_THRESHOLD, INSTANCE_TTL_EXTEND_TO);
 
         env.events().publish(
             (symbol_short!("circle"), symbol_short!("created")),
@@ -273,6 +285,9 @@ impl BazaarDealEngineContract {
         env.storage()
             .instance()
             .set(&DataKey::CircleOffers(circle_counter), &empty_offers);
+        env.storage()
+            .instance()
+            .extend_ttl(INSTANCE_TTL_THRESHOLD, INSTANCE_TTL_EXTEND_TO);
 
         env.events().publish(
             (symbol_short!("x_circle"), symbol_short!("linked")),
@@ -342,6 +357,9 @@ impl BazaarDealEngineContract {
         env.storage()
             .instance()
             .set(&DataKey::Circle(circle_id), &circle);
+        env.storage()
+            .instance()
+            .extend_ttl(INSTANCE_TTL_THRESHOLD, INSTANCE_TTL_EXTEND_TO);
 
         env.events().publish(
             (symbol_short!("demand"), symbol_short!("commit")),
@@ -387,6 +405,24 @@ impl BazaarDealEngineContract {
             return Err(Error::PriceExceedsTarget);
         }
 
+        // Validate that this seller has not already submitted an active offer for this circle
+        let existing_offers: Vec<u64> = env
+            .storage()
+            .instance()
+            .get(&DataKey::CircleOffers(circle_id))
+            .unwrap_or_else(|| vec![&env]);
+        for off_id in existing_offers.iter() {
+            if let Some(existing) = env
+                .storage()
+                .instance()
+                .get::<DataKey, SellerOffer>(&DataKey::Offer(off_id))
+            {
+                if existing.seller == seller && existing.status == OfferStatus::Submitted {
+                    return Err(Error::DuplicateOffer);
+                }
+            }
+        }
+
         let mut offer_counter: u64 = env
             .storage()
             .instance()
@@ -421,6 +457,9 @@ impl BazaarDealEngineContract {
         env.storage()
             .instance()
             .set(&DataKey::CircleOffers(circle_id), &circle_offers);
+        env.storage()
+            .instance()
+            .extend_ttl(INSTANCE_TTL_THRESHOLD, INSTANCE_TTL_EXTEND_TO);
 
         env.events().publish(
             (symbol_short!("offer"), symbol_short!("submit")),
@@ -476,6 +515,9 @@ impl BazaarDealEngineContract {
         env.storage()
             .instance()
             .set(&DataKey::Offer(offer_id), &offer);
+        env.storage()
+            .instance()
+            .extend_ttl(INSTANCE_TTL_THRESHOLD, INSTANCE_TTL_EXTEND_TO);
 
         env.events().publish(
             (symbol_short!("offer"), symbol_short!("accept")),
@@ -485,8 +527,14 @@ impl BazaarDealEngineContract {
         Ok(())
     }
 
-    /// Settle a demand circle with a winning seller offer, releasing escrowed capital and recording verifiable reputation.
+    /// Settle a demand circle with a winning seller offer.
+    ///
+    /// Follows the Checks-Effects-Interactions (CEI) security pattern:
+    /// 1. CHECKS: Validate circle quorum, offer validity, and escrow balance.
+    /// 2. EFFECTS: Update on-chain states (circle, offer, seller reputation) before token transfer.
+    /// 3. INTERACTIONS: Transfer escrowed SAC tokens to the seller last to eliminate re-entrancy risks.
     pub fn settle_deal(env: Env, circle_id: u64, winning_offer_id: u64) -> Result<(), Error> {
+        // --- 1. CHECKS ---
         let mut circle: DemandCircle = env
             .storage()
             .instance()
@@ -517,13 +565,7 @@ impl BazaarDealEngineContract {
             return Err(Error::InvalidAmount);
         }
 
-        // Transfer escrowed funds from contract to winning seller
-        token::Client::new(&env, &circle.token).transfer(
-            &env.current_contract_address(),
-            &offer.seller,
-            &payout,
-        );
-
+        // --- 2. EFFECTS (State mutations before external transfer) ---
         offer.status = OfferStatus::Accepted;
         circle.status = CircleStatus::Settled;
         circle.accepted_offer_id = Some(winning_offer_id);
@@ -552,6 +594,16 @@ impl BazaarDealEngineContract {
         env.storage()
             .instance()
             .set(&DataKey::Offer(winning_offer_id), &offer);
+        env.storage()
+            .instance()
+            .extend_ttl(INSTANCE_TTL_THRESHOLD, INSTANCE_TTL_EXTEND_TO);
+
+        // --- 3. INTERACTIONS (External token transfer performed last) ---
+        token::Client::new(&env, &circle.token).transfer(
+            &env.current_contract_address(),
+            &offer.seller,
+            &payout,
+        );
 
         env.events().publish(
             (symbol_short!("deal"), symbol_short!("settled")),
@@ -562,9 +614,15 @@ impl BazaarDealEngineContract {
     }
 
     /// Claim refund for a committed buyer if circle expired without settlement or was cancelled.
+    ///
+    /// Follows the Checks-Effects-Interactions (CEI) security pattern:
+    /// 1. CHECKS: Verify expiration or cancellation status, and buyer commitment validity.
+    /// 2. EFFECTS: Flag commitment as refunded in storage prior to token transfer.
+    /// 3. INTERACTIONS: Transfer escrowed tokens back to the buyer address last.
     pub fn claim_refund(env: Env, buyer: Address, circle_id: u64) -> Result<(), Error> {
         buyer.require_auth();
 
+        // --- 1. CHECKS ---
         let circle: DemandCircle = env
             .storage()
             .instance()
@@ -590,15 +648,19 @@ impl BazaarDealEngineContract {
             return Err(Error::AlreadyRefunded);
         }
 
-        // Return exact escrowed tokens to buyer
+        // --- 2. EFFECTS ---
+        commitment.refunded = true;
+        env.storage().instance().set(&commitment_key, &commitment);
+        env.storage()
+            .instance()
+            .extend_ttl(INSTANCE_TTL_THRESHOLD, INSTANCE_TTL_EXTEND_TO);
+
+        // --- 3. INTERACTIONS ---
         token::Client::new(&env, &circle.token).transfer(
             &env.current_contract_address(),
             &buyer,
             &commitment.amount,
         );
-
-        commitment.refunded = true;
-        env.storage().instance().set(&commitment_key, &commitment);
 
         env.events().publish(
             (symbol_short!("refund"), symbol_short!("claimed")),
@@ -630,6 +692,9 @@ impl BazaarDealEngineContract {
         env.storage()
             .instance()
             .set(&DataKey::Circle(circle_id), &circle);
+        env.storage()
+            .instance()
+            .extend_ttl(INSTANCE_TTL_THRESHOLD, INSTANCE_TTL_EXTEND_TO);
 
         env.events().publish(
             (symbol_short!("circle"), symbol_short!("cancel")),
@@ -643,12 +708,18 @@ impl BazaarDealEngineContract {
     pub fn get_circle(env: Env, circle_id: u64) -> Result<DemandCircle, Error> {
         env.storage()
             .instance()
+            .extend_ttl(INSTANCE_TTL_THRESHOLD, INSTANCE_TTL_EXTEND_TO);
+        env.storage()
+            .instance()
             .get(&DataKey::Circle(circle_id))
             .ok_or(Error::CircleNotFound)
     }
 
     /// Total registered circles count.
     pub fn get_circle_count(env: Env) -> u64 {
+        env.storage()
+            .instance()
+            .extend_ttl(INSTANCE_TTL_THRESHOLD, INSTANCE_TTL_EXTEND_TO);
         env.storage()
             .instance()
             .get(&DataKey::CircleCounter)
@@ -659,12 +730,18 @@ impl BazaarDealEngineContract {
     pub fn get_commitment(env: Env, circle_id: u64, buyer: Address) -> Result<Commitment, Error> {
         env.storage()
             .instance()
+            .extend_ttl(INSTANCE_TTL_THRESHOLD, INSTANCE_TTL_EXTEND_TO);
+        env.storage()
+            .instance()
             .get(&DataKey::Commitment(circle_id, buyer))
             .ok_or(Error::CommitmentNotFound)
     }
 
     /// Query a seller offer by ID.
     pub fn get_offer(env: Env, offer_id: u64) -> Result<SellerOffer, Error> {
+        env.storage()
+            .instance()
+            .extend_ttl(INSTANCE_TTL_THRESHOLD, INSTANCE_TTL_EXTEND_TO);
         env.storage()
             .instance()
             .get(&DataKey::Offer(offer_id))
@@ -675,12 +752,18 @@ impl BazaarDealEngineContract {
     pub fn get_circle_offers(env: Env, circle_id: u64) -> Vec<u64> {
         env.storage()
             .instance()
+            .extend_ttl(INSTANCE_TTL_THRESHOLD, INSTANCE_TTL_EXTEND_TO);
+        env.storage()
+            .instance()
             .get(&DataKey::CircleOffers(circle_id))
             .unwrap_or_else(|| vec![&env])
     }
 
     /// Query verifiable transaction-outcome-derived seller reputation.
     pub fn get_seller_reputation(env: Env, seller: Address) -> SellerReputation {
+        env.storage()
+            .instance()
+            .extend_ttl(INSTANCE_TTL_THRESHOLD, INSTANCE_TTL_EXTEND_TO);
         env.storage()
             .instance()
             .get(&DataKey::SellerReputation(seller.clone()))
