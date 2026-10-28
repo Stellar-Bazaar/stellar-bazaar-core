@@ -1,0 +1,10 @@
+[package]
+name = "bazaar-math"
+version = "0.1.0"
+edition = "2021"
+description = "Shared commercial mathematical utilities and Stroop conversions for Stellar Bazaar"
+license = "MIT"
+
+[dependencies]
+
+[dev-dependencies]
