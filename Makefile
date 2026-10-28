@@ -45,3 +45,6 @@ clean:
 
 deploy-testnet:
 	powershell -ExecutionPolicy Bypass -File ./scripts/deploy_testnet.ps1
+
+simulate-dispute:
+	powershell -ExecutionPolicy Bypass -File ./scripts/simulate_dispute_flow.ps1
