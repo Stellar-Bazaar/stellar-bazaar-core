@@ -143,6 +143,7 @@ pub enum DataKey {
     SellerReputation(Address),
     Treasury,
     ProtocolFeeBps,
+    RebateClaimed(u64, Address),
 }
 
 #[contract]
@@ -938,6 +939,78 @@ impl BazaarDealEngineContract {
         env.events().publish(
             (symbol_short!("circle"), symbol_short!("cancel")),
             (circle_id, caller),
+        );
+
+        Ok(())
+    }
+
+    /// Claim surplus discount rebate for a buyer in a settled demand circle.
+    /// When the accepted seller quote is lower than the circle target unit price,
+    /// committed buyers are entitled to their pro-rata price savings.
+    pub fn claim_surplus_rebate(env: Env, buyer: Address, circle_id: u64) -> Result<(), Error> {
+        buyer.require_auth();
+
+        // --- 1. CHECKS ---
+        let circle: DemandCircle = env
+            .storage()
+            .instance()
+            .get(&DataKey::Circle(circle_id))
+            .ok_or(Error::CircleNotFound)?;
+
+        if circle.status != CircleStatus::Settled {
+            return Err(Error::CircleNotSettled);
+        }
+
+        let rebate_key = DataKey::RebateClaimed(circle_id, buyer.clone());
+        if env.storage().instance().has(&rebate_key) {
+            return Err(Error::AlreadyClaimedRebate);
+        }
+
+        let commitment_key = DataKey::Commitment(circle_id, buyer.clone());
+        let commitment: Commitment = env
+            .storage()
+            .instance()
+            .get(&commitment_key)
+            .ok_or(Error::CommitmentNotFound)?;
+
+        let winning_offer_id = circle.accepted_offer_id.ok_or(Error::OfferNotFound)?;
+        let offer: SellerOffer = env
+            .storage()
+            .instance()
+            .get(&DataKey::Offer(winning_offer_id))
+            .ok_or(Error::OfferNotFound)?;
+
+        if offer.unit_price >= circle.target_unit_price {
+            return Err(Error::NoSurplusRebate);
+        }
+
+        let rebate_amount = bazaar_math::calculate_surplus_rebate(
+            circle.target_unit_price,
+            offer.unit_price,
+            commitment.quantity,
+        )
+        .map_err(|_| Error::InvalidAmount)?;
+
+        if rebate_amount <= 0 {
+            return Err(Error::NoSurplusRebate);
+        }
+
+        // --- 2. EFFECTS ---
+        env.storage().instance().set(&rebate_key, &true);
+        env.storage()
+            .instance()
+            .extend_ttl(INSTANCE_TTL_THRESHOLD, INSTANCE_TTL_EXTEND_TO);
+
+        // --- 3. INTERACTIONS ---
+        token::Client::new(&env, &circle.token).transfer(
+            &env.current_contract_address(),
+            &buyer,
+            &rebate_amount,
+        );
+
+        env.events().publish(
+            (symbol_short!("rebate"), symbol_short!("claimed")),
+            (circle_id, buyer, rebate_amount),
         );
 
         Ok(())
