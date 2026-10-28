@@ -1,0 +1,16 @@
+use crate::health::HealthChecker;
+use crate::http::{HttpResponse, HttpStatus};
+use crate::state::IndexerDaemonState;
+
+/// REST controller handling inbound HTTP requests against indexer daemon
+pub struct ApiController;
+
+impl ApiController {
+    /// GET /health - Returns health check status and telemetry
+    pub fn handle_health(state: &IndexerDaemonState, consecutive_errors: u32) -> HttpResponse {
+        let health = HealthChecker::evaluate(state, consecutive_errors);
+        HttpResponse::json(HttpStatus::Ok, &health).unwrap_or_else(|e| {
+            HttpResponse::text(HttpStatus::InternalServerError, &e.to_string())
+        })
+    }
+}

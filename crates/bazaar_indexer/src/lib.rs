@@ -13,6 +13,7 @@ pub mod health;
 pub mod metrics;
 pub mod http;
 pub mod router;
+pub mod controller;
 
 use domain::*;
 use thiserror::Error;
