@@ -413,3 +413,64 @@ fn test_buyer_refund_on_creator_cancellation() {
     let repeat_refund = client.try_claim_refund(&buyer, &circle_id);
     assert_eq!(repeat_refund, Err(Ok(Error::AlreadyRefunded)));
 }
+
+#[test]
+fn test_deal_inspection_lifecycle_and_settlement() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let creator = Address::generate(&env);
+    let buyer = Address::generate(&env);
+    let seller = Address::generate(&env);
+    let unauthorized_user = Address::generate(&env);
+
+    let token_admin = Address::generate(&env);
+    let token_contract = env.register_stellar_asset_contract_v2(token_admin);
+    let token_client = token::Client::new(&env, &token_contract.address());
+    let token_admin_client = StellarAssetClient::new(&env, &token_contract.address());
+    token_admin_client.mint(&buyer, &100_000_000);
+
+    let contract_id = env.register(BazaarDealEngineContract, ());
+    let client = BazaarDealEngineContractClient::new(&env, &contract_id);
+    client.initialize(&admin);
+
+    let circle_id = client.create_circle(
+        &creator,
+        &token_contract.address(),
+        &10_000_000,
+        &5,
+        &20,
+        &86400,
+    );
+
+    // Buyer commits 5 units, reaching quorum
+    client.commit_demand(&buyer, &circle_id, &5);
+    let circle_pre = client.get_circle(&circle_id);
+    assert_eq!(circle_pre.status, CircleStatus::QuorumReached);
+
+    // Seller submits offer
+    let offer_id = client.submit_seller_offer(&seller, &circle_id, &9_000_000, &10, &3);
+    client.accept_seller_offer(&creator, &circle_id, &offer_id);
+
+    // Attempting settlement before inspection initiated should fail if called via confirm_inspection_and_settle
+    let err_premature = client.try_confirm_inspection_and_settle(&creator, &circle_id);
+    assert_eq!(err_premature, Err(Ok(Error::NotUnderInspection)));
+
+    // Creator initiates inspection period for 3 days (259,200s)
+    client.initiate_inspection(&creator, &circle_id, &259_200);
+    let circle_inspect = client.get_circle(&circle_id);
+    assert_eq!(circle_inspect.status, CircleStatus::Inspection);
+
+    // Unauthorized user cannot confirm delivery
+    let err_unauth = client.try_confirm_inspection_and_settle(&unauthorized_user, &circle_id);
+    assert_eq!(err_unauth, Err(Ok(Error::Unauthorized)));
+
+    // Creator confirms inspection and delivery; escrow settles
+    client.confirm_inspection_and_settle(&creator, &circle_id);
+    let circle_settled = client.get_circle(&circle_id);
+    assert_eq!(circle_settled.status, CircleStatus::Settled);
+
+    // Verify seller received 45_000_000 stroops (5 units * 9_000_000)
+    assert_eq!(token_client.balance(&seller), 45_000_000);
+}
