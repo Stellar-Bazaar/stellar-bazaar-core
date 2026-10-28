@@ -14,6 +14,7 @@ pub mod metrics;
 pub mod http;
 pub mod router;
 pub mod controller;
+pub mod server;
 
 use domain::*;
 use thiserror::Error;
