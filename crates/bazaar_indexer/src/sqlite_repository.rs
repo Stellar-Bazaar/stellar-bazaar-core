@@ -285,6 +285,52 @@ impl BazaarRepository for SqliteBazaarRepository {
         Ok(disputes)
     }
 
+    fn record_protocol_fee(&mut self, fee: ProtocolFeeRecord) -> Result<(), IndexerError> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            r#"INSERT INTO protocol_fees (
+                id, circle_id, gross_payout_stroops, fee_bps, fee_stroops, net_payout_stroops, treasury_address
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)"#,
+            params![
+                fee.id,
+                fee.circle_id,
+                fee.gross_payout_stroops,
+                fee.fee_bps,
+                fee.fee_stroops,
+                fee.net_payout_stroops,
+                fee.treasury_address,
+            ],
+        ).map_err(|e| IndexerError::Database(e.to_string()))?;
+        Ok(())
+    }
+
+    fn get_protocol_fees_for_circle(&self, circle_id: &str) -> Result<Vec<ProtocolFeeRecord>, IndexerError> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            r#"SELECT id, circle_id, gross_payout_stroops, fee_bps, fee_stroops, net_payout_stroops, treasury_address
+               FROM protocol_fees WHERE circle_id = ?1 ORDER BY settled_at ASC"#
+        ).map_err(|e| IndexerError::Database(e.to_string()))?;
+
+        let rows = stmt.query_map(params![circle_id], |row| {
+            Ok(ProtocolFeeRecord {
+                id: row.get(0)?,
+                circle_id: row.get(1)?,
+                gross_payout_stroops: row.get(2)?,
+                fee_bps: row.get(3)?,
+                fee_stroops: row.get(4)?,
+                net_payout_stroops: row.get(5)?,
+                treasury_address: row.get(6)?,
+                settled_at_timestamp: 0,
+            })
+        }).map_err(|e| IndexerError::Database(e.to_string()))?;
+
+        let mut fees = Vec::new();
+        for f in rows {
+            fees.push(f.map_err(|e| IndexerError::Database(e.to_string()))?);
+        }
+        Ok(fees)
+    }
+
     fn update_last_ledger(&mut self, _ledger: u64) -> Result<(), IndexerError> {
         Ok(())
     }
