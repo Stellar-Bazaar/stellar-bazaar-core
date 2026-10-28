@@ -659,6 +659,84 @@ impl BazaarDealEngineContract {
         Ok(())
     }
 
+    /// Resolves an open dispute through administrative arbitration.
+    /// - If refund_to_buyers is true: circle status is set to Cancelled,
+    ///   allowing buyers to claim 100% refund, and seller's disputed reputation is updated.
+    /// - If refund_to_buyers is false: releases escrow funds to seller via settle_deal.
+    pub fn resolve_dispute(
+        env: Env,
+        caller: Address,
+        circle_id: u64,
+        refund_to_buyers: bool,
+    ) -> Result<(), Error> {
+        caller.require_auth();
+
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .ok_or(Error::NotInitialized)?;
+
+        if caller != admin {
+            return Err(Error::Unauthorized);
+        }
+
+        let mut circle: DemandCircle = env
+            .storage()
+            .instance()
+            .get(&DataKey::Circle(circle_id))
+            .ok_or(Error::CircleNotFound)?;
+
+        if circle.status != CircleStatus::Disputed {
+            return Err(Error::DisputeNotOpen);
+        }
+
+        if refund_to_buyers {
+            circle.status = CircleStatus::Cancelled;
+
+            // Update seller reputation to record dispute/refund
+            if let Some(offer_id) = circle.accepted_offer_id {
+                if let Some(offer) = env
+                    .storage()
+                    .instance()
+                    .get::<_, SellerOffer>(&DataKey::Offer(offer_id))
+                {
+                    let rep_key = DataKey::SellerReputation(offer.seller.clone());
+                    let mut rep: SellerReputation = env
+                        .storage()
+                        .instance()
+                        .get(&rep_key)
+                        .unwrap_or(SellerReputation {
+                            seller: offer.seller.clone(),
+                            successful_deals: 0,
+                            total_volume_settled: 0,
+                            total_amount_settled: 0,
+                            disputed_or_refunded_deals: 0,
+                        });
+                    rep.disputed_or_refunded_deals += 1;
+                    env.storage().instance().set(&rep_key, &rep);
+                }
+            }
+
+            env.storage()
+                .instance()
+                .set(&DataKey::Circle(circle_id), &circle);
+            env.storage()
+                .instance()
+                .extend_ttl(INSTANCE_TTL_THRESHOLD, INSTANCE_TTL_EXTEND_TO);
+
+            env.events().publish(
+                (symbol_short!("dispute"), symbol_short!("resolve")),
+                (circle_id, caller, true),
+            );
+
+            Ok(())
+        } else {
+            let winning_offer_id = circle.accepted_offer_id.ok_or(Error::OfferNotFound)?;
+            Self::settle_deal(env, circle_id, winning_offer_id)
+        }
+    }
+
     /// Settle a demand circle with a winning seller offer.
     ///
     /// Follows the Checks-Effects-Interactions (CEI) security pattern:
@@ -673,7 +751,10 @@ impl BazaarDealEngineContract {
             .get(&DataKey::Circle(circle_id))
             .ok_or(Error::CircleNotFound)?;
 
-        if circle.status != CircleStatus::QuorumReached && circle.status != CircleStatus::Inspection {
+        if circle.status != CircleStatus::QuorumReached
+            && circle.status != CircleStatus::Inspection
+            && circle.status != CircleStatus::Disputed
+        {
             return Err(Error::QuorumNotReached);
         }
 
