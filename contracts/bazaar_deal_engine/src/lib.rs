@@ -2,7 +2,7 @@
 
 use soroban_sdk::{
     contract, contractclient, contracterror, contractimpl, contracttype, symbol_short, token, vec,
-    Address, Env, String, Vec,
+    Address, Env, String, Symbol, Vec,
 };
 
 /// Minimum ledgers remaining before instance TTL is extended (~1 day at 5s/ledger).
@@ -606,6 +606,57 @@ impl BazaarDealEngineContract {
 
         let winning_offer_id = circle.accepted_offer_id.ok_or(Error::OfferNotFound)?;
         Self::settle_deal(env, circle_id, winning_offer_id)
+    }
+
+    /// Opens a formal commercial dispute during inspection or post-quorum negotiation.
+    /// Can be initiated by circle creator or any buyer who committed capital.
+    pub fn dispute_deal(
+        env: Env,
+        caller: Address,
+        circle_id: u64,
+        reason: Symbol,
+    ) -> Result<(), Error> {
+        caller.require_auth();
+
+        let mut circle: DemandCircle = env
+            .storage()
+            .instance()
+            .get(&DataKey::Circle(circle_id))
+            .ok_or(Error::CircleNotFound)?;
+
+        if circle.status == CircleStatus::Disputed {
+            return Err(Error::DisputeAlreadyOpen);
+        }
+
+        if circle.status != CircleStatus::Inspection && circle.status != CircleStatus::QuorumReached {
+            return Err(Error::NotUnderInspection);
+        }
+
+        // Caller must be creator or have an active commitment
+        let is_creator = circle.creator == caller;
+        let is_buyer = env
+            .storage()
+            .instance()
+            .has(&DataKey::Commitment(circle_id, caller.clone()));
+
+        if !is_creator && !is_buyer {
+            return Err(Error::DisputeUnauthorized);
+        }
+
+        circle.status = CircleStatus::Disputed;
+        env.storage()
+            .instance()
+            .set(&DataKey::Circle(circle_id), &circle);
+        env.storage()
+            .instance()
+            .extend_ttl(INSTANCE_TTL_THRESHOLD, INSTANCE_TTL_EXTEND_TO);
+
+        env.events().publish(
+            (symbol_short!("dispute"), symbol_short!("opened")),
+            (circle_id, caller, reason),
+        );
+
+        Ok(())
     }
 
     /// Settle a demand circle with a winning seller offer.
