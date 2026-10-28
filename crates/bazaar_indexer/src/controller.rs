@@ -82,4 +82,15 @@ impl ApiController {
             Err(e) => HttpResponse::text(HttpStatus::InternalServerError, &e.to_string()),
         }
     }
+
+    /// GET /api/v1/sellers/:id/reputation - Returns reputation metrics for a specific seller
+    pub fn handle_get_seller_reputation(repo: &dyn BazaarRepository, seller: &str) -> HttpResponse {
+        match repo.get_seller_reputation(seller) {
+            Ok(Some(rep)) => HttpResponse::json(HttpStatus::Ok, &rep).unwrap_or_else(|e| {
+                HttpResponse::text(HttpStatus::InternalServerError, &e.to_string())
+            }),
+            Ok(None) => HttpResponse::not_found(&format!("Seller reputation for '{}' not found", seller)),
+            Err(e) => HttpResponse::text(HttpStatus::InternalServerError, &e.to_string()),
+        }
+    }
 }
