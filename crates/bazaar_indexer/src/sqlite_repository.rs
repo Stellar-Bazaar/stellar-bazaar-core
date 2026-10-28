@@ -82,7 +82,24 @@ impl BazaarRepository for SqliteBazaarRepository {
         Ok(())
     }
 
-    fn record_offer(&mut self, _offer: SellerOfferRecord) -> Result<(), IndexerError> {
+    fn record_offer(&mut self, offer: SellerOfferRecord) -> Result<(), IndexerError> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            r#"INSERT INTO seller_offers (
+                id, circle_id, seller_address, offered_unit_price_xlm, available_volume, lead_time_days, status
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
+            ON CONFLICT(id) DO UPDATE SET
+                status = excluded.status"#,
+            params![
+                offer.id,
+                offer.circle_id,
+                offer.seller_address,
+                offer.offered_unit_price_xlm,
+                offer.available_volume,
+                offer.lead_time_days,
+                offer.status,
+            ],
+        ).map_err(|e| IndexerError::Database(e.to_string()))?;
         Ok(())
     }
 
@@ -120,8 +137,30 @@ impl BazaarRepository for SqliteBazaarRepository {
         }
     }
 
-    fn get_offers_for_circle(&self, _circle_id: &str) -> Result<Vec<SellerOfferRecord>, IndexerError> {
-        Ok(Vec::new())
+    fn get_offers_for_circle(&self, circle_id: &str) -> Result<Vec<SellerOfferRecord>, IndexerError> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            r#"SELECT id, circle_id, seller_address, offered_unit_price_xlm, available_volume, lead_time_days, status
+               FROM seller_offers WHERE circle_id = ?1 ORDER BY submitted_at ASC"#
+        ).map_err(|e| IndexerError::Database(e.to_string()))?;
+
+        let rows = stmt.query_map(params![circle_id], |row| {
+            Ok(SellerOfferRecord {
+                id: row.get(0)?,
+                circle_id: row.get(1)?,
+                seller_address: row.get(2)?,
+                offered_unit_price_xlm: row.get(3)?,
+                available_volume: row.get(4)?,
+                lead_time_days: row.get(5)?,
+                status: row.get(6)?,
+            })
+        }).map_err(|e| IndexerError::Database(e.to_string()))?;
+
+        let mut offers = Vec::new();
+        for offer in rows {
+            offers.push(offer.map_err(|e| IndexerError::Database(e.to_string()))?);
+        }
+        Ok(offers)
     }
 
     fn get_commitments_for_circle(&self, circle_id: &str) -> Result<Vec<CommitmentRecord>, IndexerError> {
