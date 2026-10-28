@@ -2,12 +2,13 @@
 
 use super::*;
 use soroban_sdk::{
-    testutils::{Address as _, Ledger},
+    testutils::Address as _,
     token::StellarAssetClient,
     Address, Env,
 };
 
 /// Test fixture bundling deal engine client, SAC tokens, and test actor accounts.
+#[allow(dead_code)]
 pub struct E2EFixture<'a> {
     pub env: &'a Env,
     pub admin: Address,
@@ -81,4 +82,66 @@ fn test_e2e_fixture_initialization() {
     assert_eq!(fix.deal_client.get_protocol_fee_bps(), 100);
     assert_eq!(fix.deal_client.get_treasury(), Some(fix.treasury.clone()));
     assert_eq!(fix.token_client.balance(&fix.buyers[0]), 1_000_000_000);
+}
+
+#[test]
+fn test_e2e_happy_path_cooperative_deal_lifecycle() {
+    let env = Env::default();
+    let fix = E2EFixture::new(&env);
+
+    // 1. Creator launches Demand Circle
+    // Target price = 10_000_000 stroops (1 XLM), min volume = 10, max volume = 50
+    let circle_id = fix.deal_client.create_circle(
+        &fix.creator,
+        &fix.token_address,
+        &10_000_000,
+        &10,
+        &50,
+        &86_400,
+    );
+    assert_eq!(circle_id, 1);
+
+    // 2. Three buyers commit 5 units each (Total 15 units, reaching quorum >= 10)
+    fix.deal_client.commit_demand(&fix.buyers[0], &circle_id, &5);
+    fix.deal_client.commit_demand(&fix.buyers[1], &circle_id, &5);
+    fix.deal_client.commit_demand(&fix.buyers[2], &circle_id, &5);
+
+    let circle = fix.deal_client.get_circle(&circle_id);
+    assert_eq!(circle.current_volume, 15);
+    assert_eq!(circle.status, CircleStatus::QuorumReached);
+    assert_eq!(fix.token_client.balance(&fix.contract_id), 150_000_000); // 15 * 10 XLM
+
+    // 3. Merchant places wholesale offer at 8_000_000 stroops (20% savings, 30 units capacity, 7 day lead time)
+    let offer_id = fix.deal_client.submit_seller_offer(
+        &fix.seller,
+        &circle_id,
+        &8_000_000,
+        &30,
+        &7,
+    );
+    assert_eq!(offer_id, 1);
+
+    // 4. Circle creator accepts merchant offer
+    fix.deal_client.accept_seller_offer(&fix.creator, &circle_id, &offer_id);
+
+    // 5. Creator initiates inspection period for 24 hours (86,400s)
+    fix.deal_client.initiate_inspection(&fix.creator, &circle_id, &86_400);
+    let circle_inspecting = fix.deal_client.get_circle(&circle_id);
+    assert_eq!(circle_inspecting.status, CircleStatus::Inspection);
+
+    // 6. Creator confirms inspection and delivery; escrow settles
+    fix.deal_client.confirm_inspection_and_settle(&fix.creator, &circle_id);
+
+    let settled_circle = fix.deal_client.get_circle(&circle_id);
+    assert_eq!(settled_circle.status, CircleStatus::Settled);
+
+    // 7. Verify balances after settlement:
+    // Wholesale volume: 15 * 8_000_000 = 120_000_000
+    // Protocol fee (1%): 1_200_000 stroops to Treasury
+    // Net to seller: 118_800_000 stroops
+    assert_eq!(fix.token_client.balance(&fix.seller), 118_800_000);
+    assert_eq!(fix.token_client.balance(&fix.treasury), 1_200_000);
+
+    // Remaining in contract: 30_000_000 stroops reserved for buyer surplus rebates
+    assert_eq!(fix.token_client.balance(&fix.contract_id), 30_000_000);
 }
