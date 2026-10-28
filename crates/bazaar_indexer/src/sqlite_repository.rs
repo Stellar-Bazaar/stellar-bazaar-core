@@ -107,7 +107,27 @@ impl BazaarRepository for SqliteBazaarRepository {
         Ok(())
     }
 
-    fn record_reputation(&mut self, _reputation: SellerReputationRecord) -> Result<(), IndexerError> {
+    fn record_reputation(&mut self, reputation: SellerReputationRecord) -> Result<(), IndexerError> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            r#"INSERT INTO seller_reputations (
+                seller_address, successful_deals, total_volume_settled, total_amount_settled_xlm, disputed_or_refunded_deals, score_percentage
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+            ON CONFLICT(seller_address) DO UPDATE SET
+                successful_deals = excluded.successful_deals,
+                total_volume_settled = excluded.total_volume_settled,
+                total_amount_settled_xlm = excluded.total_amount_settled_xlm,
+                disputed_or_refunded_deals = excluded.disputed_or_refunded_deals,
+                score_percentage = excluded.score_percentage"#,
+            params![
+                reputation.seller_address,
+                reputation.successful_deals,
+                reputation.total_volume_settled as i64,
+                reputation.total_amount_settled_xlm,
+                reputation.disputed_or_refunded_deals,
+                reputation.score_percentage,
+            ],
+        ).map_err(|e| IndexerError::Database(e.to_string()))?;
         Ok(())
     }
 
@@ -189,8 +209,27 @@ impl BazaarRepository for SqliteBazaarRepository {
         Ok(commitments)
     }
 
-    fn get_seller_reputation(&self, _seller: &str) -> Result<Option<SellerReputationRecord>, IndexerError> {
-        Ok(None)
+    fn get_seller_reputation(&self, seller: &str) -> Result<Option<SellerReputationRecord>, IndexerError> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            r#"SELECT seller_address, successful_deals, total_volume_settled, total_amount_settled_xlm, disputed_or_refunded_deals, score_percentage
+               FROM seller_reputations WHERE seller_address = ?1"#
+        ).map_err(|e| IndexerError::Database(e.to_string()))?;
+
+        let mut rows = stmt.query(params![seller]).map_err(|e| IndexerError::Database(e.to_string()))?;
+        if let Some(row) = rows.next().map_err(|e| IndexerError::Database(e.to_string()))? {
+            let volume: i64 = row.get(2).map_err(|e| IndexerError::Database(e.to_string()))?;
+            Ok(Some(SellerReputationRecord {
+                seller_address: row.get(0).map_err(|e| IndexerError::Database(e.to_string()))?,
+                successful_deals: row.get(1).map_err(|e| IndexerError::Database(e.to_string()))?,
+                total_volume_settled: volume as u64,
+                total_amount_settled_xlm: row.get(3).map_err(|e| IndexerError::Database(e.to_string()))?,
+                disputed_or_refunded_deals: row.get(4).map_err(|e| IndexerError::Database(e.to_string()))?,
+                score_percentage: row.get(5).map_err(|e| IndexerError::Database(e.to_string()))?,
+            }))
+        } else {
+            Ok(None)
+        }
     }
 
     fn get_last_ledger(&self) -> Result<u64, IndexerError> {
