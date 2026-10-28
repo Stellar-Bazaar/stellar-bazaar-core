@@ -384,3 +384,39 @@ fn test_e2e_expired_circle_refund() {
     assert_eq!(fix.token_client.balance(&fix.buyers[0]), 1_000_000_000);
     assert_eq!(fix.token_client.balance(&fix.contract_id), 0);
 }
+
+#[test]
+fn test_e2e_premature_settlement_rejection() {
+    let env = Env::default();
+    let fix = E2EFixture::new(&env);
+
+    let circle_id = fix.deal_client.create_circle(
+        &fix.creator,
+        &fix.token_address,
+        &10_000_000,
+        &10,
+        &50,
+        &86_400,
+    );
+
+    fix.deal_client.commit_demand(&fix.buyers[0], &circle_id, &5);
+    fix.deal_client.commit_demand(&fix.buyers[1], &circle_id, &5);
+
+    let offer_id = fix.deal_client.submit_seller_offer(
+        &fix.seller,
+        &circle_id,
+        &8_000_000,
+        &20,
+        &5,
+    );
+
+    fix.deal_client.accept_seller_offer(&fix.creator, &circle_id, &offer_id);
+
+    // Circle is Accepted but NOT yet in Inspection phase
+    let circle = fix.deal_client.get_circle(&circle_id);
+    assert_eq!(circle.status, CircleStatus::QuorumReached);
+
+    // Calling confirm_inspection_and_settle prematurely must fail with NotUnderInspection
+    let err = fix.deal_client.try_confirm_inspection_and_settle(&fix.creator, &circle_id);
+    assert_eq!(err, Err(Ok(Error::NotUnderInspection)));
+}
