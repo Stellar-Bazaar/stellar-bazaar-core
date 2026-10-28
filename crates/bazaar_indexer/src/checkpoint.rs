@@ -64,4 +64,36 @@ mod tests {
         CheckpointManager::commit_checkpoint(&mut repo, 99).unwrap();
         assert_eq!(repo.get_last_ledger().unwrap(), 100);
     }
+
+    #[test]
+    fn test_checkpoint_idempotency_on_batch_replay() {
+        use crate::sqlite_repository::SqliteBazaarRepository;
+        use crate::event_decoder::BazaarContractEvent;
+        use crate::event_processor::EventProcessor;
+
+        let mut repo = SqliteBazaarRepository::new_in_memory().unwrap();
+
+        let event = BazaarContractEvent::CircleCreated {
+            circle_id: 10,
+            creator: "GBIDEMPOTENT".to_string(),
+            target_unit_price: 5_000_000,
+            min_volume: 10,
+            max_volume: 100,
+            deadline: 1800000000,
+        };
+
+        // First ingestion at ledger 500
+        EventProcessor::process_event(&mut repo, event.clone(), 500, "tx_500").unwrap();
+        CheckpointManager::commit_checkpoint(&mut repo, 500).unwrap();
+        assert_eq!(repo.get_last_ledger().unwrap(), 500);
+
+        // Replay ingestion of exact same event at ledger 500 (e.g. following process restart)
+        EventProcessor::process_event(&mut repo, event, 500, "tx_500").unwrap();
+        CheckpointManager::commit_checkpoint(&mut repo, 500).unwrap();
+        assert_eq!(repo.get_last_ledger().unwrap(), 500);
+
+        // Verify exactly 1 circle exists without duplication
+        let circle = repo.get_circle("10").unwrap().unwrap();
+        assert_eq!(circle.creator_address, "GBIDEMPOTENT");
+    }
 }
