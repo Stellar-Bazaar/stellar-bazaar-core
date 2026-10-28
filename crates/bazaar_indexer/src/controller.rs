@@ -31,4 +31,15 @@ impl ApiController {
             Err(e) => HttpResponse::text(HttpStatus::InternalServerError, &e.to_string()),
         }
     }
+
+    /// GET /api/v1/circles/:id - Returns details for a single demand circle
+    pub fn handle_get_circle(repo: &dyn BazaarRepository, id: &str) -> HttpResponse {
+        match repo.get_circle(id) {
+            Ok(Some(circle)) => HttpResponse::json(HttpStatus::Ok, &circle).unwrap_or_else(|e| {
+                HttpResponse::text(HttpStatus::InternalServerError, &e.to_string())
+            }),
+            Ok(None) => HttpResponse::not_found(&format!("Demand circle '{}' not found", id)),
+            Err(e) => HttpResponse::text(HttpStatus::InternalServerError, &e.to_string()),
+        }
+    }
 }
