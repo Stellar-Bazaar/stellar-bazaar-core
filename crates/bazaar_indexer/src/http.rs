@@ -140,6 +140,9 @@ impl HttpResponse {
             headers: vec![
                 ("Connection".to_string(), "close".to_string()),
                 ("Access-Control-Allow-Origin".to_string(), "*".to_string()),
+                ("Access-Control-Allow-Methods".to_string(), "GET, POST, OPTIONS, HEAD".to_string()),
+                ("Access-Control-Allow-Headers".to_string(), "Content-Type, Authorization, X-Requested-With".to_string()),
+                ("Access-Control-Max-Age".to_string(), "86400".to_string()),
             ],
             body,
         }
