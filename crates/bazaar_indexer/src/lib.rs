@@ -201,4 +201,44 @@ mod tests {
         let found_rep = repo.get_seller_reputation("GSELLER1").unwrap();
         assert_eq!(found_rep.unwrap().score_percentage, 100);
     }
+
+    #[test]
+    fn test_dispute_and_protocol_fee_storage_lifecycle() {
+        let mut repo = InMemoryBazaarRepository::new();
+
+        let dispute = DisputeRecord {
+            id: "disp_1".to_string(),
+            circle_id: "circle_42".to_string(),
+            initiator_address: "GBUYER123".to_string(),
+            dispute_reason: "DAMAGED_CRATE".to_string(),
+            status: "OPEN".to_string(),
+            resolution_refund_to_buyers: None,
+            opened_at_timestamp: 1700000000,
+            resolved_at_timestamp: None,
+        };
+
+        repo.record_dispute(dispute.clone()).unwrap();
+        let disputes = repo.get_disputes_for_circle("circle_42").unwrap();
+        assert_eq!(disputes.len(), 1);
+        assert_eq!(disputes[0].dispute_reason, "DAMAGED_CRATE");
+        assert_eq!(disputes[0].status, "OPEN");
+
+        // Protocol fee record
+        let fee = ProtocolFeeRecord {
+            id: "fee_1".to_string(),
+            circle_id: "circle_42".to_string(),
+            gross_payout_stroops: "500000000".to_string(),
+            fee_bps: 150,
+            fee_stroops: "7500000".to_string(),
+            net_payout_stroops: "492500000".to_string(),
+            treasury_address: "GTREASURY99".to_string(),
+            settled_at_timestamp: 1700003600,
+        };
+
+        repo.record_protocol_fee(fee).unwrap();
+        let fees = repo.get_protocol_fees_for_circle("circle_42").unwrap();
+        assert_eq!(fees.len(), 1);
+        assert_eq!(fees[0].fee_bps, 150);
+        assert_eq!(fees[0].fee_stroops, "7500000");
+    }
 }
