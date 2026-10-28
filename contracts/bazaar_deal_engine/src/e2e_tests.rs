@@ -487,3 +487,24 @@ fn test_e2e_duplicate_merchant_offer_rejection() {
     );
     assert_eq!(err, Err(Ok(Error::DuplicateOffer)));
 }
+
+#[test]
+fn test_e2e_maximum_volume_overflow_enforcement() {
+    let env = Env::default();
+    let fix = E2EFixture::new(&env);
+
+    let circle_id = fix.deal_client.create_circle(
+        &fix.creator,
+        &fix.token_address,
+        &10_000_000,
+        &5,
+        &15, // max volume = 15
+        &86_400,
+    );
+
+    fix.deal_client.commit_demand(&fix.buyers[0], &circle_id, &10);
+
+    // Attempting to commit 10 more units exceeds 15 max volume cap
+    let err = fix.deal_client.try_commit_demand(&fix.buyers[1], &circle_id, &10);
+    assert_eq!(err, Err(Ok(Error::VolumeExceeded)));
+}
