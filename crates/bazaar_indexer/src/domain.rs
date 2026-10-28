@@ -46,3 +46,21 @@ pub struct SettlementRecord {
     pub contract_call_tx_hash: String,
     pub ledger_sequence: u64,
 }
+
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SellerReputationRecord {
+    pub seller_address: String,
+    pub successful_deals: u32,
+    pub total_volume_settled: u64,
+    pub total_amount_settled_xlm: String,
+    pub disputed_or_refunded_deals: u32,
+    pub score_percentage: u32,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct IndexerCheckpointRecord {
+    pub network: String,
+    pub latest_ledger_sequence: u64,
+    pub updated_at_timestamp: i64,
+}
