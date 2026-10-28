@@ -41,3 +41,43 @@ impl IndexerWorker {
         self.state.record_error(error_msg);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_worker_exponential_backoff_and_recovery() {
+        let mut config = IndexerConfig::local_testnet();
+        config.poll_interval_ms = 1_000;
+        let mut worker = IndexerWorker::new(config);
+
+        // 0 errors -> base interval 1000ms
+        assert_eq!(worker.calculate_backoff(), Duration::from_millis(1_000));
+
+        // 1 error -> 1000 * 2^1 = 2000ms
+        worker.on_poll_failure("RPC timeout".to_string());
+        assert_eq!(worker.consecutive_errors, 1);
+        assert_eq!(worker.calculate_backoff(), Duration::from_millis(2_000));
+
+        // 2 errors -> 1000 * 2^2 = 4000ms
+        worker.on_poll_failure("RPC connection reset".to_string());
+        assert_eq!(worker.consecutive_errors, 2);
+        assert_eq!(worker.calculate_backoff(), Duration::from_millis(4_000));
+
+        // 5 errors -> 1000 * 2^5 = 32000ms capped at 30000ms
+        worker.consecutive_errors = 5;
+        assert_eq!(worker.calculate_backoff(), Duration::from_millis(30_000));
+
+        // 10 errors -> still capped at 30000ms
+        worker.consecutive_errors = 10;
+        assert_eq!(worker.calculate_backoff(), Duration::from_millis(30_000));
+
+        // Success resets backoff
+        worker.on_poll_success(500, 10);
+        assert_eq!(worker.consecutive_errors, 0);
+        assert_eq!(worker.calculate_backoff(), Duration::from_millis(1_000));
+        assert_eq!(worker.state.latest_ledger, 500);
+        assert_eq!(worker.state.total_events_indexed, 10);
+    }
+}
