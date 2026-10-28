@@ -10,6 +10,7 @@ pub mod event_processor;
 pub mod checkpoint;
 pub mod worker;
 pub mod health;
+pub mod metrics;
 
 use domain::*;
 use thiserror::Error;
