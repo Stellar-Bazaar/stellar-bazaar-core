@@ -236,6 +236,55 @@ impl BazaarRepository for SqliteBazaarRepository {
         Ok(0)
     }
 
+    fn record_dispute(&mut self, dispute: DisputeRecord) -> Result<(), IndexerError> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            r#"INSERT INTO disputes (
+                id, circle_id, initiator_address, dispute_reason, status, resolution_refund_to_buyers
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+            ON CONFLICT(id) DO UPDATE SET
+                status = excluded.status,
+                resolution_refund_to_buyers = excluded.resolution_refund_to_buyers"#,
+            params![
+                dispute.id,
+                dispute.circle_id,
+                dispute.initiator_address,
+                dispute.dispute_reason,
+                dispute.status,
+                dispute.resolution_refund_to_buyers.map(|b| if b { 1 } else { 0 }),
+            ],
+        ).map_err(|e| IndexerError::Database(e.to_string()))?;
+        Ok(())
+    }
+
+    fn get_disputes_for_circle(&self, circle_id: &str) -> Result<Vec<DisputeRecord>, IndexerError> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            r#"SELECT id, circle_id, initiator_address, dispute_reason, status, resolution_refund_to_buyers
+               FROM disputes WHERE circle_id = ?1 ORDER BY opened_at ASC"#
+        ).map_err(|e| IndexerError::Database(e.to_string()))?;
+
+        let rows = stmt.query_map(params![circle_id], |row| {
+            let res_int: Option<i32> = row.get(5)?;
+            Ok(DisputeRecord {
+                id: row.get(0)?,
+                circle_id: row.get(1)?,
+                initiator_address: row.get(2)?,
+                dispute_reason: row.get(3)?,
+                status: row.get(4)?,
+                resolution_refund_to_buyers: res_int.map(|i| i == 1),
+                opened_at_timestamp: 0,
+                resolved_at_timestamp: None,
+            })
+        }).map_err(|e| IndexerError::Database(e.to_string()))?;
+
+        let mut disputes = Vec::new();
+        for d in rows {
+            disputes.push(d.map_err(|e| IndexerError::Database(e.to_string()))?);
+        }
+        Ok(disputes)
+    }
+
     fn update_last_ledger(&mut self, _ledger: u64) -> Result<(), IndexerError> {
         Ok(())
     }
