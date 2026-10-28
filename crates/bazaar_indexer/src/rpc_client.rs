@@ -97,3 +97,59 @@ pub fn build_get_events_request(
         },
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_build_get_events_request_serialization() {
+        let req = build_get_events_request(
+            1,
+            150000,
+            vec!["CDCK6A2QB5QTILDWILUQGAUWXI543TK63WN2OKG7WEWHBAMGZ6ESKY4G".to_string()],
+            50,
+        );
+
+        let json_str = serde_json::to_string(&req).unwrap();
+        assert!(json_str.contains("\"method\":\"getEvents\""));
+        assert!(json_str.contains("\"startLedger\":150000"));
+        assert!(json_str.contains("\"contractIds\":[\"CDCK6A2QB5QTILDWILUQGAUWXI543TK63WN2OKG7WEWHBAMGZ6ESKY4G\"]"));
+        assert!(json_str.contains("\"limit\":50"));
+    }
+
+    #[test]
+    fn test_get_events_response_deserialization() {
+        let raw_json = r#"{
+            "jsonrpc": "2.0",
+            "id": 1,
+            "result": {
+                "latestLedger": 150005,
+                "cursor": "150000-0000000001",
+                "events": [
+                    {
+                        "type": "contract",
+                        "ledger": 150001,
+                        "ledgerClosedAt": "2024-02-15T12:00:00Z",
+                        "contractId": "CDCK6A2QB5QTILDWILUQGAUWXI543TK63WN2OKG7WEWHBAMGZ6ESKY4G",
+                        "id": "0000150001-0000000001",
+                        "pagingToken": "150001-0000000001",
+                        "topic": ["AAAADwAAAANkaXIAAA==", "AAAADwAAAANzZXR0bGU="],
+                        "value": {"circle_id": 10, "winning_offer_id": 2, "seller_payout": 50000000},
+                        "inSuccessfulContractCall": true
+                    }
+                ]
+            }
+        }"#;
+
+        let resp: GetEventsResponse = serde_json::from_str(raw_json).unwrap();
+        assert!(resp.error.is_none());
+        let res = resp.result.unwrap();
+        assert_eq!(res.latest_ledger, 150005);
+        assert_eq!(res.events.len(), 1);
+        let event = &res.events[0];
+        assert_eq!(event.ledger, 150001);
+        assert_eq!(event.paging_token, "150001-0000000001");
+        assert!(event.in_successful_contract_call);
+    }
+}
