@@ -233,7 +233,18 @@ impl BazaarRepository for SqliteBazaarRepository {
     }
 
     fn get_last_ledger(&self) -> Result<u64, IndexerError> {
-        Ok(0)
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            r#"SELECT latest_ledger_sequence FROM indexer_checkpoint WHERE network = 'testnet'"#
+        ).map_err(|e| IndexerError::Database(e.to_string()))?;
+
+        let mut rows = stmt.query([]).map_err(|e| IndexerError::Database(e.to_string()))?;
+        if let Some(row) = rows.next().map_err(|e| IndexerError::Database(e.to_string()))? {
+            let seq: i64 = row.get(0).map_err(|e| IndexerError::Database(e.to_string()))?;
+            Ok(seq as u64)
+        } else {
+            Ok(0)
+        }
     }
 
     fn record_dispute(&mut self, dispute: DisputeRecord) -> Result<(), IndexerError> {
@@ -331,7 +342,16 @@ impl BazaarRepository for SqliteBazaarRepository {
         Ok(fees)
     }
 
-    fn update_last_ledger(&mut self, _ledger: u64) -> Result<(), IndexerError> {
+    fn update_last_ledger(&mut self, ledger: u64) -> Result<(), IndexerError> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            r#"INSERT INTO indexer_checkpoint (network, latest_ledger_sequence, updated_at_timestamp)
+               VALUES ('testnet', ?1, strftime('%s', 'now'))
+               ON CONFLICT(network) DO UPDATE SET
+                   latest_ledger_sequence = excluded.latest_ledger_sequence,
+                   updated_at_timestamp = excluded.updated_at_timestamp"#,
+            params![ledger as i64],
+        ).map_err(|e| IndexerError::Database(e.to_string()))?;
         Ok(())
     }
 }
