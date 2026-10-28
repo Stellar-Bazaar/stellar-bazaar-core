@@ -193,3 +193,45 @@ impl HttpResponse {
         bytes
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_http_get_request() {
+        let raw = "GET /api/v1/circles?limit=10 HTTP/1.1\r\nHost: localhost:8088\r\nAccept: application/json\r\n\r\n";
+        let req = HttpRequest::parse(raw).expect("Failed to parse HTTP request");
+
+        assert_eq!(req.method, HttpMethod::Get);
+        assert_eq!(req.path, "/api/v1/circles");
+        assert_eq!(req.query.as_deref(), Some("limit=10"));
+        assert!(req.headers.iter().any(|(k, v)| k == "host" && v == "localhost:8088"));
+        assert!(req.headers.iter().any(|(k, v)| k == "accept" && v == "application/json"));
+    }
+
+    #[test]
+    fn test_http_response_to_bytes() {
+        #[derive(Serialize)]
+        struct Payload {
+            message: &'static str,
+        }
+        let resp = HttpResponse::json(HttpStatus::Ok, &Payload { message: "pong" }).unwrap();
+        let bytes = resp.to_http_bytes();
+        let s = String::from_utf8(bytes).unwrap();
+
+        assert!(s.starts_with("HTTP/1.1 200 OK\r\n"));
+        assert!(s.contains("Content-Type: application/json; charset=utf-8\r\n"));
+        assert!(s.contains("Access-Control-Allow-Origin: *\r\n"));
+        assert!(s.contains("{\"message\":\"pong\"}"));
+    }
+
+    #[test]
+    fn test_not_found_response() {
+        let resp = HttpResponse::not_found("Demand circle not found");
+        assert_eq!(resp.status, HttpStatus::NotFound);
+        let s = String::from_utf8(resp.body).unwrap();
+        assert!(s.contains("Demand circle not found"));
+        assert!(s.contains("\"code\":404"));
+    }
+}
