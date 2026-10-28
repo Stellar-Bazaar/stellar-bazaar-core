@@ -109,3 +109,41 @@ When querying Soroban RPC `getEvents`:
 }
 ```
 Transactions within a ledger are committed atomically with the checkpoint sequence to ensure zero duplicate projections during restarts.
+
+---
+
+## 4. SQLite Storage Engine (`SqliteBazaarRepository`)
+
+The indexer provides an embedded, zero-configuration SQLite backend with WAL mode enabled:
+
+```rust
+use bazaar_indexer::sqlite_repository::SqliteBazaarRepository;
+use bazaar_indexer::BazaarRepository;
+
+// Initialize in-memory or on-disk database
+let mut repo = SqliteBazaarRepository::new("./bazaar_indexer.db")?;
+
+// Query active demand circles
+let active_circles = repo.list_active_circles()?;
+
+// Query top-ranked sellers by verified on-chain score
+let top_sellers = repo.list_top_sellers(10)?;
+```
+
+---
+
+## 5. Soroban Event Decoding (`EventDecoder`)
+
+The `event_decoder` module converts raw JSON-RPC event topics into strongly-typed domain events:
+
+| Contract Event | Topic Symbol Pair | Decoded Rust Variant |
+|---|---|---|
+| Demand Circle Created | `("circle", "create")` | `BazaarContractEvent::CircleCreated` |
+| Buyer Demand Committed | `("demand", "commit")` | `BazaarContractEvent::DemandCommitted` |
+| Seller Offer Submitted | `("offer", "submit")` | `BazaarContractEvent::OfferSubmitted` |
+| Inspection Window Started | `("inspect", "start")` | `BazaarContractEvent::InspectionStarted` |
+| Commercial Dispute Raised | `("dispute", "opened")` | `BazaarContractEvent::DisputeOpened` |
+| Dispute Arbitrated | `("dispute", "resolve")` | `BazaarContractEvent::DisputeResolved` |
+| Bulk Deal Settled | `("deal", "settled")` | `BazaarContractEvent::DealSettled` |
+| Surplus Rebate Claimed | `("rebate", "claimed")` | `BazaarContractEvent::SurplusRebateClaimed` |
+
