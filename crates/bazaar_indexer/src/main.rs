@@ -1,6 +1,7 @@
 use bazaar_indexer::config::IndexerConfig;
 use bazaar_indexer::health::HealthChecker;
 use bazaar_indexer::metrics::PrometheusExporter;
+use bazaar_indexer::server::ApiServer;
 use bazaar_indexer::sqlite_repository::SqliteBazaarRepository;
 use bazaar_indexer::worker::IndexerWorker;
 use std::env;
@@ -18,6 +19,8 @@ OPTIONS:
     --contract <ID>             Target Soroban smart contract ID to index
     --start-ledger <SEQ>        Starting ledger sequence for event catch-up
     --batch-size <NUM>          Maximum events to fetch per RPC call
+    --port <PORT>               Port for embedded REST API server [default: 8088]
+    --serve                     Launch live HTTP REST API server
     --health                    Evaluate daemon health check and print JSON
     --metrics                   Render Prometheus metrics output and exit
     --dry-run                   Validate database and configuration without starting loop
@@ -38,6 +41,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut dry_run = false;
     let mut print_health = false;
     let mut print_metrics = false;
+    let mut serve = false;
+    let mut port = 8088u16;
 
     let mut i = 1;
     while i < args.len() {
@@ -76,6 +81,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     i += 1;
                 }
             }
+            "--port" => {
+                if i + 1 < args.len() {
+                    if let Ok(p) = args[i + 1].parse::<u16>() {
+                        port = p;
+                        config.health_port = p;
+                    }
+                    i += 1;
+                }
+            }
+            "--serve" => {
+                serve = true;
+            }
             "--dry-run" => {
                 dry_run = true;
             }
@@ -99,10 +116,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Contract IDs     : {:?}", config.contract_ids);
     println!("Poll Interval    : {} ms", config.poll_interval_ms);
     println!("Batch Size       : {} events", config.batch_size);
+    println!("HTTP Port        : {}", port);
     println!("------------------------------------------------------------");
 
     // Initialize database
-    let _repo = if config.db_path == ":memory:" {
+    let repo = if config.db_path == ":memory:" {
         SqliteBazaarRepository::new_in_memory()?
     } else {
         SqliteBazaarRepository::new(&config.db_path)?
@@ -125,6 +143,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     if dry_run {
         println!("[Daemon] Dry run mode completed successfully. Config & storage valid.");
+        return Ok(());
+    }
+
+    if serve {
+        let addr = format!("127.0.0.1:{}", port);
+        println!("[Daemon] Starting HTTP REST API server on http://{}", addr);
+        let server = ApiServer::new(Box::new(repo), worker);
+        server.serve(&addr)?;
         return Ok(());
     }
 
