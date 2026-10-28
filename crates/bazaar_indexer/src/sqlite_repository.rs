@@ -355,3 +355,108 @@ impl BazaarRepository for SqliteBazaarRepository {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_sqlite_repository_circle_and_commitment_lifecycle() {
+        let mut repo = SqliteBazaarRepository::new_in_memory().unwrap();
+
+        let circle = DemandCircleRecord {
+            id: "circle_100".to_string(),
+            title: "Agricultural Fertilizer Bulk Demand".to_string(),
+            category: "Agriculture".to_string(),
+            target_unit_price_xlm: "50.0".to_string(),
+            min_volume: 50,
+            max_volume: 200,
+            current_volume: 0,
+            status: "OPEN".to_string(),
+            creator_address: "GBCREATOR123".to_string(),
+            deadline_timestamp: 1899999999,
+        };
+
+        repo.record_circle(circle.clone()).unwrap();
+        let fetched = repo.get_circle("circle_100").unwrap().unwrap();
+        assert_eq!(fetched.title, "Agricultural Fertilizer Bulk Demand");
+        assert_eq!(fetched.min_volume, 50);
+
+        // Buyer commitment
+        let commitment = CommitmentRecord {
+            id: "comm_1".to_string(),
+            circle_id: "circle_100".to_string(),
+            buyer_address: "GBUYER1".to_string(),
+            quantity: 25,
+            committed_amount_xlm: "1250.0".to_string(),
+            escrow_tx_hash: Some("tx_abc123".to_string()),
+            status: "ESCROWED".to_string(),
+        };
+        repo.record_commitment(commitment).unwrap();
+
+        let commitments = repo.get_commitments_for_circle("circle_100").unwrap();
+        assert_eq!(commitments.len(), 1);
+        assert_eq!(commitments[0].buyer_address, "GBUYER1");
+        assert_eq!(commitments[0].quantity, 25);
+    }
+
+    #[test]
+    fn test_sqlite_repository_dispute_and_checkpoint_lifecycle() {
+        let mut repo = SqliteBazaarRepository::new_in_memory().unwrap();
+
+        // Checkpoint starts at 0
+        assert_eq!(repo.get_last_ledger().unwrap(), 0);
+
+        repo.update_last_ledger(987654).unwrap();
+        assert_eq!(repo.get_last_ledger().unwrap(), 987654);
+
+        // Record a circle first to satisfy foreign key constraints
+        let circle = DemandCircleRecord {
+            id: "circle_200".to_string(),
+            title: "Industrial Machinery Parts".to_string(),
+            category: "Industrial".to_string(),
+            target_unit_price_xlm: "500.0".to_string(),
+            min_volume: 10,
+            max_volume: 50,
+            current_volume: 10,
+            status: "INSPECTION".to_string(),
+            creator_address: "GBINDUS1".to_string(),
+            deadline_timestamp: 1899999999,
+        };
+        repo.record_circle(circle).unwrap();
+
+        // Record dispute
+        let dispute = DisputeRecord {
+            id: "disp_99".to_string(),
+            circle_id: "circle_200".to_string(),
+            initiator_address: "GBUYER1".to_string(),
+            dispute_reason: "WRONG_SPECIFICATION".to_string(),
+            status: "OPEN".to_string(),
+            resolution_refund_to_buyers: None,
+            opened_at_timestamp: 1700000000,
+            resolved_at_timestamp: None,
+        };
+        repo.record_dispute(dispute).unwrap();
+
+        let disputes = repo.get_disputes_for_circle("circle_200").unwrap();
+        assert_eq!(disputes.len(), 1);
+        assert_eq!(disputes[0].dispute_reason, "WRONG_SPECIFICATION");
+
+        // Record protocol fee
+        let fee = ProtocolFeeRecord {
+            id: "fee_99".to_string(),
+            circle_id: "circle_200".to_string(),
+            gross_payout_stroops: "5000000000".to_string(),
+            fee_bps: 200,
+            fee_stroops: "100000000".to_string(),
+            net_payout_stroops: "4900000000".to_string(),
+            treasury_address: "GTREASURY".to_string(),
+            settled_at_timestamp: 1700003600,
+        };
+        repo.record_protocol_fee(fee).unwrap();
+
+        let fees = repo.get_protocol_fees_for_circle("circle_200").unwrap();
+        assert_eq!(fees.len(), 1);
+        assert_eq!(fees[0].fee_bps, 200);
+    }
+}
