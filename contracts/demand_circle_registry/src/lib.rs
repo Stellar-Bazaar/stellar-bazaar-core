@@ -4,21 +4,39 @@ use soroban_sdk::{
     contract, contracterror, contractimpl, contracttype, symbol_short, Address, Env, String,
 };
 
+/// Minimum ledgers remaining before instance TTL is extended (~1 day at 5s/ledger).
+pub const INSTANCE_TTL_THRESHOLD: u32 = 17_280;
+/// Amount of ledgers to extend instance TTL to (~30 days at 5s/ledger).
+pub const INSTANCE_TTL_EXTEND_TO: u32 = 518_400;
+
 #[contracterror]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
 #[repr(u32)]
 pub enum Error {
+    /// Contract has already been initialized with an administrative address.
     AlreadyInitialized = 1,
+    /// Contract administrative address or state has not been initialized.
     NotInitialized = 2,
+    /// Invoker lacks necessary authorization to execute this operation.
     Unauthorized = 3,
+    /// Requested demand circle ID was not found in registry storage.
     CircleNotFound = 4,
+    /// Target order quantity must be greater than zero.
     InvalidQuantity = 5,
+    /// Target unit price must be strictly positive in Stroops.
     InvalidPrice = 6,
+    /// Duration must be between 60 seconds and 31,536,000 seconds (1 year).
     InvalidDeadline = 7,
+    /// Title cannot be empty and must not exceed 64 bytes.
     InvalidTitle = 8,
+    /// Operation cannot be performed given the current lifecycle status of the circle.
     InvalidState = 9,
+    /// Expiration cannot be triggered before the block deadline timestamp has passed.
     DeadlineNotPassed = 10,
+    /// Action cannot be performed because circle deadline has already elapsed.
     DeadlinePassed = 11,
+    /// Metadata URI exceeds the maximum permitted length of 256 bytes or is empty.
+    InvalidMetadataUri = 12,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -30,17 +48,27 @@ pub enum CircleStatus {
     Cancelled = 3,
 }
 
+/// Authoritative on-chain record for a commercial demand circle on Stellar.
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[contracttype]
 pub struct DemandCircle {
+    /// Unique sequential identifier assigned on-chain.
     pub id: u64,
+    /// Stellar account address that established this demand circle.
     pub creator: Address,
+    /// Short human-readable title (up to 64 bytes).
     pub title: String,
+    /// Decentralized metadata URI (e.g., IPFS content identifier) containing product specifications (max 256 bytes).
     pub metadata_uri: String,
+    /// Minimum aggregate unit volume required to reach collective purchasing quorum.
     pub target_quantity: u32,
+    /// Target maximum acceptable unit price in Stroops (10,000,000 Stroops = 1 XLM).
     pub target_price_stroops: i128,
+    /// Unix timestamp (in seconds) after which commitments can no longer be accepted.
     pub deadline: u64,
+    /// Ledger Unix timestamp at the moment this circle was initialized.
     pub created_at: u64,
+    /// Current lifecycle phase of the circle (Open, Closed, Expired, Cancelled).
     pub status: CircleStatus,
 }
 
@@ -64,6 +92,9 @@ impl DemandCircleRegistryContract {
         }
         env.storage().instance().set(&DataKey::Admin, &admin);
         env.storage().instance().set(&DataKey::CircleCounter, &0u64);
+        env.storage()
+            .instance()
+            .extend_ttl(INSTANCE_TTL_THRESHOLD, INSTANCE_TTL_EXTEND_TO);
         Ok(())
     }
 
@@ -90,6 +121,9 @@ impl DemandCircleRegistryContract {
         }
         if title.is_empty() || title.len() > 64 {
             return Err(Error::InvalidTitle);
+        }
+        if metadata_uri.is_empty() || metadata_uri.len() > 256 {
+            return Err(Error::InvalidMetadataUri);
         }
 
         let mut counter: u64 = env
@@ -120,6 +154,9 @@ impl DemandCircleRegistryContract {
         env.storage()
             .instance()
             .set(&DataKey::CircleCounter, &counter);
+        env.storage()
+            .instance()
+            .extend_ttl(INSTANCE_TTL_THRESHOLD, INSTANCE_TTL_EXTEND_TO);
 
         // Emit structured event for indexers
         env.events().publish(
@@ -134,12 +171,18 @@ impl DemandCircleRegistryContract {
     pub fn get_circle(env: Env, circle_id: u64) -> Result<DemandCircle, Error> {
         env.storage()
             .instance()
+            .extend_ttl(INSTANCE_TTL_THRESHOLD, INSTANCE_TTL_EXTEND_TO);
+        env.storage()
+            .instance()
             .get(&DataKey::Circle(circle_id))
             .ok_or(Error::CircleNotFound)
     }
 
     /// Returns the total count of registered demand circles.
     pub fn get_circle_count(env: Env) -> u64 {
+        env.storage()
+            .instance()
+            .extend_ttl(INSTANCE_TTL_THRESHOLD, INSTANCE_TTL_EXTEND_TO);
         env.storage()
             .instance()
             .get(&DataKey::CircleCounter)
@@ -168,6 +211,9 @@ impl DemandCircleRegistryContract {
         env.storage()
             .instance()
             .set(&DataKey::Circle(circle_id), &circle);
+        env.storage()
+            .instance()
+            .extend_ttl(INSTANCE_TTL_THRESHOLD, INSTANCE_TTL_EXTEND_TO);
 
         env.events().publish(
             (symbol_short!("circle"), symbol_short!("closed")),
@@ -197,6 +243,9 @@ impl DemandCircleRegistryContract {
         env.storage()
             .instance()
             .set(&DataKey::Circle(circle_id), &circle);
+        env.storage()
+            .instance()
+            .extend_ttl(INSTANCE_TTL_THRESHOLD, INSTANCE_TTL_EXTEND_TO);
 
         env.events().publish(
             (symbol_short!("circle"), symbol_short!("expired")),
@@ -208,6 +257,9 @@ impl DemandCircleRegistryContract {
 
     /// Returns the registry administrator address.
     pub fn get_admin(env: Env) -> Result<Address, Error> {
+        env.storage()
+            .instance()
+            .extend_ttl(INSTANCE_TTL_THRESHOLD, INSTANCE_TTL_EXTEND_TO);
         env.storage()
             .instance()
             .get(&DataKey::Admin)
