@@ -184,6 +184,7 @@ checksum = "2af50177e190e07a26ab74f8b1efbfe2ef87da2116221318cb1c2e82baf7de06"
 name = "bazaar-deal-engine"
 version = "0.1.0"
 dependencies = [
+ "bazaar-math",
  "demand-circle-registry",
  "soroban-sdk",
 ]
@@ -196,6 +197,10 @@ dependencies = [
  "serde_json",
  "thiserror 1.0.69",
 ]
+
+[[package]]
+name = "bazaar-math"
+version = "0.1.0"
 
 [[package]]
 name = "bitflags"
@@ -468,6 +473,7 @@ dependencies = [
 name = "demand-circle-registry"
 version = "0.1.0"
 dependencies = [
+ "bazaar-math",
  "soroban-sdk",
 ]
 
