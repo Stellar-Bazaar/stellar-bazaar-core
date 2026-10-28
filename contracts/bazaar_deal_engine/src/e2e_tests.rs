@@ -508,3 +508,19 @@ fn test_e2e_maximum_volume_overflow_enforcement() {
     let err = fix.deal_client.try_commit_demand(&fix.buyers[1], &circle_id, &10);
     assert_eq!(err, Err(Ok(Error::VolumeExceeded)));
 }
+
+#[test]
+fn test_e2e_invalid_protocol_fee_bps_rejection() {
+    let env = Env::default();
+    let fix = E2EFixture::new(&env);
+
+    // Protocol maximum fee is 1,000 bps (10%)
+    // Setting 1,001 bps must fail with InvalidFeeBps
+    let err = fix.deal_client.try_set_protocol_fee(&fix.admin, &1_001);
+    assert_eq!(err, Err(Ok(Error::InvalidFeeBps)));
+
+    // Setting allowable fee 250 bps succeeds
+    let res = fix.deal_client.try_set_protocol_fee(&fix.admin, &250);
+    assert!(res.is_ok());
+    assert_eq!(fix.deal_client.get_protocol_fee_bps(), 250);
+}
