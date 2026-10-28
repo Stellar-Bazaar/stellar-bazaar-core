@@ -84,6 +84,16 @@ mod tests {
         assert!(SQLITE_INITIAL_SCHEMA.contains("CREATE TABLE IF NOT EXISTS demand_circles"));
         assert!(SQLITE_INITIAL_SCHEMA.contains("CREATE TABLE IF NOT EXISTS indexer_checkpoint"));
         assert!(SQLITE_INITIAL_SCHEMA.contains("CREATE TABLE IF NOT EXISTS seller_reputations"));
+        assert!(SQLITE_INITIAL_SCHEMA.contains("CREATE TABLE IF NOT EXISTS disputes"));
+        assert!(SQLITE_INITIAL_SCHEMA.contains("CREATE TABLE IF NOT EXISTS protocol_fees"));
+    }
+
+    #[test]
+    fn test_schema_contains_relational_foreign_keys() {
+        assert!(SQLITE_INITIAL_SCHEMA.contains("REFERENCES demand_circles(id)"));
+        assert!(SQLITE_INITIAL_SCHEMA.contains("gross_payout_stroops TEXT NOT NULL"));
+        assert!(SQLITE_INITIAL_SCHEMA.contains("treasury_address TEXT NOT NULL"));
+        assert!(SQLITE_INITIAL_SCHEMA.contains("resolution_refund_to_buyers INTEGER"));
     }
 }
 
