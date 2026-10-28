@@ -316,3 +316,40 @@ fn test_e2e_unauthorized_dispute_resolution_rejection() {
     let err = fix.deal_client.try_resolve_dispute(&unauthorized_caller, &circle_id, &true);
     assert_eq!(err, Err(Ok(Error::Unauthorized)));
 }
+
+#[test]
+fn test_e2e_double_claim_rebate_protection() {
+    let env = Env::default();
+    let fix = E2EFixture::new(&env);
+
+    let circle_id = fix.deal_client.create_circle(
+        &fix.creator,
+        &fix.token_address,
+        &10_000_000,
+        &10,
+        &50,
+        &86_400,
+    );
+
+    fix.deal_client.commit_demand(&fix.buyers[0], &circle_id, &5);
+    fix.deal_client.commit_demand(&fix.buyers[1], &circle_id, &5);
+
+    let offer_id = fix.deal_client.submit_seller_offer(
+        &fix.seller,
+        &circle_id,
+        &8_000_000,
+        &20,
+        &5,
+    );
+
+    fix.deal_client.accept_seller_offer(&fix.creator, &circle_id, &offer_id);
+    fix.deal_client.initiate_inspection(&fix.creator, &circle_id, &86_400);
+    fix.deal_client.confirm_inspection_and_settle(&fix.creator, &circle_id);
+
+    // First claim succeeds
+    fix.deal_client.claim_surplus_rebate(&fix.buyers[0], &circle_id);
+
+    // Second claim must fail with AlreadyClaimedRebate
+    let err = fix.deal_client.try_claim_surplus_rebate(&fix.buyers[0], &circle_id);
+    assert_eq!(err, Err(Ok(Error::AlreadyClaimedRebate)));
+}
