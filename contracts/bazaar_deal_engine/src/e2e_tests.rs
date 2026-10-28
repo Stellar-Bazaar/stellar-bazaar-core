@@ -2,7 +2,7 @@
 
 use super::*;
 use soroban_sdk::{
-    testutils::Address as _,
+    testutils::{Address as _, Events as _},
     token::StellarAssetClient,
     Address, Env,
 };
@@ -603,4 +603,42 @@ fn test_e2e_instance_storage_ttl_extension() {
     fix.deal_client.commit_demand(&fix.buyers[0], &circle_id, &5);
     let circle = fix.deal_client.get_circle(&circle_id);
     assert_eq!(circle.current_volume, 5);
+}
+
+#[test]
+fn test_e2e_event_emission_lifecycle() {
+    let env = Env::default();
+    let fix = E2EFixture::new(&env);
+
+    // 1. Circle creation event
+    let circle_id = fix.deal_client.create_circle(
+        &fix.creator,
+        &fix.token_address,
+        &10_000_000,
+        &10,
+        &50,
+        &86_400,
+    );
+
+    // 2. Demand commitment event
+    fix.deal_client.commit_demand(&fix.buyers[0], &circle_id, &5);
+    fix.deal_client.commit_demand(&fix.buyers[1], &circle_id, &5);
+
+    // 3. Seller offer event
+    let offer_id = fix.deal_client.submit_seller_offer(
+        &fix.seller,
+        &circle_id,
+        &8_000_000,
+        &20,
+        &5,
+    );
+
+    // 4. Inspection and settlement events
+    fix.deal_client.accept_seller_offer(&fix.creator, &circle_id, &offer_id);
+    fix.deal_client.initiate_inspection(&fix.creator, &circle_id, &86_400);
+    fix.deal_client.confirm_inspection_and_settle(&fix.creator, &circle_id);
+
+    // Verify events were emitted throughout the cooperative lifecycle
+    let all_events = env.events().all();
+    assert!(!all_events.is_empty());
 }
