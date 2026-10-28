@@ -449,3 +449,41 @@ fn test_e2e_offer_price_exceeds_target_rejection() {
 
     assert_eq!(err, Err(Ok(Error::PriceExceedsTarget)));
 }
+
+#[test]
+fn test_e2e_duplicate_merchant_offer_rejection() {
+    let env = Env::default();
+    let fix = E2EFixture::new(&env);
+
+    let circle_id = fix.deal_client.create_circle(
+        &fix.creator,
+        &fix.token_address,
+        &10_000_000,
+        &10,
+        &50,
+        &86_400,
+    );
+
+    fix.deal_client.commit_demand(&fix.buyers[0], &circle_id, &5);
+    fix.deal_client.commit_demand(&fix.buyers[1], &circle_id, &5);
+
+    // First offer succeeds
+    let offer_id = fix.deal_client.submit_seller_offer(
+        &fix.seller,
+        &circle_id,
+        &9_000_000,
+        &20,
+        &5,
+    );
+    assert_eq!(offer_id, 1);
+
+    // Second offer from the same seller for the same circle fails
+    let err = fix.deal_client.try_submit_seller_offer(
+        &fix.seller,
+        &circle_id,
+        &8_500_000,
+        &25,
+        &4,
+    );
+    assert_eq!(err, Err(Ok(Error::DuplicateOffer)));
+}
