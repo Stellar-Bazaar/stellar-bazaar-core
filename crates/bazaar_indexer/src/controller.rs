@@ -1,5 +1,6 @@
 use crate::health::HealthChecker;
 use crate::http::{HttpResponse, HttpStatus};
+use crate::metrics::PrometheusExporter;
 use crate::state::IndexerDaemonState;
 
 /// REST controller handling inbound HTTP requests against indexer daemon
@@ -12,5 +13,11 @@ impl ApiController {
         HttpResponse::json(HttpStatus::Ok, &health).unwrap_or_else(|e| {
             HttpResponse::text(HttpStatus::InternalServerError, &e.to_string())
         })
+    }
+
+    /// GET /metrics - Returns Prometheus text format metrics
+    pub fn handle_metrics(state: &IndexerDaemonState, consecutive_errors: u32) -> HttpResponse {
+        let metrics = PrometheusExporter::render(state, consecutive_errors);
+        HttpResponse::text(HttpStatus::Ok, &metrics)
     }
 }
