@@ -145,3 +145,51 @@ fn test_e2e_happy_path_cooperative_deal_lifecycle() {
     // Remaining in contract: 30_000_000 stroops reserved for buyer surplus rebates
     assert_eq!(fix.token_client.balance(&fix.contract_id), 30_000_000);
 }
+
+#[test]
+fn test_e2e_surplus_rebate_distribution() {
+    let env = Env::default();
+    let fix = E2EFixture::new(&env);
+
+    let circle_id = fix.deal_client.create_circle(
+        &fix.creator,
+        &fix.token_address,
+        &10_000_000,
+        &10,
+        &50,
+        &86_400,
+    );
+
+    // 3 buyers commit 5 units each (deposit 50_000_000 each)
+    // Starting balance of each buyer: 1_000_000_000
+    // Balance after commitment: 950_000_000
+    for b in &fix.buyers {
+        fix.deal_client.commit_demand(b, &circle_id, &5);
+        assert_eq!(fix.token_client.balance(b), 950_000_000);
+    }
+
+    let offer_id = fix.deal_client.submit_seller_offer(
+        &fix.seller,
+        &circle_id,
+        &8_000_000,
+        &30,
+        &7,
+    );
+
+    fix.deal_client.accept_seller_offer(&fix.creator, &circle_id, &offer_id);
+    fix.deal_client.initiate_inspection(&fix.creator, &circle_id, &86_400);
+    fix.deal_client.confirm_inspection_and_settle(&fix.creator, &circle_id);
+
+    // Surplus in contract: 30_000_000 stroops
+    assert_eq!(fix.token_client.balance(&fix.contract_id), 30_000_000);
+
+    // Each buyer claims their 10_000_000 stroops surplus rebate
+    for b in &fix.buyers {
+        fix.deal_client.claim_surplus_rebate(b, &circle_id);
+        // Buyer balance restored by 10_000_000 -> 960_000_000 (effective cost = 40_000_000)
+        assert_eq!(fix.token_client.balance(b), 960_000_000);
+    }
+
+    // After all 3 buyers claim, contract escrow holds 0 stroops
+    assert_eq!(fix.token_client.balance(&fix.contract_id), 0);
+}
