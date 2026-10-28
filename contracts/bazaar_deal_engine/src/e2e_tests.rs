@@ -524,3 +524,59 @@ fn test_e2e_invalid_protocol_fee_bps_rejection() {
     assert!(res.is_ok());
     assert_eq!(fix.deal_client.get_protocol_fee_bps(), 250);
 }
+
+#[test]
+fn test_e2e_multi_asset_sac_settlement() {
+    let env = Env::default();
+    let fix = E2EFixture::new(&env);
+
+    // Deploy an independent USDC SAC token contract
+    let usdc_admin = Address::generate(&env);
+    let usdc_contract = env.register_stellar_asset_contract_v2(usdc_admin);
+    let usdc_address = usdc_contract.address();
+    let usdc_token_client = token::Client::new(&env, &usdc_address);
+    let usdc_admin_client = StellarAssetClient::new(&env, &usdc_address);
+
+    // Mint 500 USDC (5,000,000,000 stroops) to buyers
+    usdc_admin_client.mint(&fix.buyers[0], &5_000_000_000);
+    usdc_admin_client.mint(&fix.buyers[1], &5_000_000_000);
+
+    // 1. Create Demand Circle for USDC
+    // Target unit price: 10_000_000 (1 USDC), min volume 10, max volume 50
+    let circle_id = fix.deal_client.create_circle(
+        &fix.creator,
+        &usdc_address,
+        &10_000_000,
+        &10,
+        &50,
+        &86_400,
+    );
+
+    // 2. Commit USDC demand
+    fix.deal_client.commit_demand(&fix.buyers[0], &circle_id, &5);
+    fix.deal_client.commit_demand(&fix.buyers[1], &circle_id, &5);
+
+    assert_eq!(usdc_token_client.balance(&fix.contract_id), 100_000_000);
+    // Base XLM token contract balance remains 0
+    assert_eq!(fix.token_client.balance(&fix.contract_id), 0);
+
+    // 3. Wholesale offer in USDC at 9 USDC
+    let offer_id = fix.deal_client.submit_seller_offer(
+        &fix.seller,
+        &circle_id,
+        &9_000_000,
+        &20,
+        &5,
+    );
+
+    fix.deal_client.accept_seller_offer(&fix.creator, &circle_id, &offer_id);
+    fix.deal_client.initiate_inspection(&fix.creator, &circle_id, &86_400);
+    fix.deal_client.confirm_inspection_and_settle(&fix.creator, &circle_id);
+
+    // 4. Verify wholesale payout in USDC
+    // 10 units * 9 USDC = 90_000_000 stroops
+    // Fee 1%: 900_000 stroops
+    // Seller net: 89_100_000 USDC stroops
+    assert_eq!(usdc_token_client.balance(&fix.seller), 89_100_000);
+    assert_eq!(usdc_token_client.balance(&fix.treasury), 900_000);
+}
