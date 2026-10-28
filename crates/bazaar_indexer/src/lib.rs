@@ -32,6 +32,19 @@ pub trait BazaarRepository: Send + Sync {
 
     fn get_last_ledger(&self) -> Result<u64, IndexerError>;
     fn update_last_ledger(&mut self, ledger: u64) -> Result<(), IndexerError>;
+
+    fn record_dispute(&mut self, _dispute: DisputeRecord) -> Result<(), IndexerError> {
+        Ok(())
+    }
+    fn get_disputes_for_circle(&self, _circle_id: &str) -> Result<Vec<DisputeRecord>, IndexerError> {
+        Ok(Vec::new())
+    }
+    fn record_protocol_fee(&mut self, _fee: ProtocolFeeRecord) -> Result<(), IndexerError> {
+        Ok(())
+    }
+    fn get_protocol_fees_for_circle(&self, _circle_id: &str) -> Result<Vec<ProtocolFeeRecord>, IndexerError> {
+        Ok(Vec::new())
+    }
 }
 
 /// In-memory implementation of the repository boundary for testing and local operation
