@@ -54,6 +54,35 @@ pub fn calculate_quorum_pct(current_volume: u32, target_volume: u32) -> Result<u
     Ok(pct as u32)
 }
 
+/// Calculates the protocol fee and net payout to seller after deducting basis points fee.
+/// Returns (net_payout, fee_amount).
+#[inline]
+pub fn calculate_net_payout(gross_amount: i128, fee_bps: u32) -> Result<(i128, i128), MathError> {
+    if gross_amount < 0 {
+        return Err(MathError::Overflow);
+    }
+    let fee = calculate_fee_bps(gross_amount, fee_bps)?;
+    let net = gross_amount.checked_sub(fee).ok_or(MathError::Overflow)?;
+    Ok((net, fee))
+}
+
+/// Calculates the surplus rebate amount per buyer when accepted offer price is lower than target price.
+#[inline]
+pub fn calculate_surplus_rebate(
+    target_unit_price: i128,
+    accepted_unit_price: i128,
+    quantity: u32,
+) -> Result<i128, MathError> {
+    if accepted_unit_price > target_unit_price {
+        return Err(MathError::Overflow);
+    }
+    let diff = target_unit_price
+        .checked_sub(accepted_unit_price)
+        .ok_or(MathError::Overflow)?;
+    let q = quantity as i128;
+    q.checked_mul(diff).ok_or(MathError::Overflow)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
