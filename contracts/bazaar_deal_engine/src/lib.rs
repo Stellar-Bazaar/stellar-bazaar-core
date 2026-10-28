@@ -53,6 +53,7 @@ pub enum Error {
     RegistryError = 18,
     PriceExceedsTarget = 19,
     DuplicateOffer = 20,
+    NotUnderInspection = 21,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -62,6 +63,7 @@ pub enum CircleStatus {
     QuorumReached = 1,
     Settled = 2,
     Cancelled = 3,
+    Inspection = 4,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -527,6 +529,78 @@ impl BazaarDealEngineContract {
         Ok(())
     }
 
+    /// Initiates a commercial delivery and inspection period for an accepted deal.
+    pub fn initiate_inspection(
+        env: Env,
+        caller: Address,
+        circle_id: u64,
+        inspection_duration_seconds: u64,
+    ) -> Result<(), Error> {
+        caller.require_auth();
+
+        let mut circle: DemandCircle = env
+            .storage()
+            .instance()
+            .get(&DataKey::Circle(circle_id))
+            .ok_or(Error::CircleNotFound)?;
+
+        if circle.creator != caller {
+            return Err(Error::Unauthorized);
+        }
+
+        if circle.status != CircleStatus::QuorumReached {
+            return Err(Error::QuorumNotReached);
+        }
+
+        if circle.accepted_offer_id.is_none() {
+            return Err(Error::OfferNotFound);
+        }
+
+        circle.status = CircleStatus::Inspection;
+        let inspection_deadline = env.ledger().timestamp() + inspection_duration_seconds;
+        circle.deadline = inspection_deadline;
+
+        env.storage()
+            .instance()
+            .set(&DataKey::Circle(circle_id), &circle);
+        env.storage()
+            .instance()
+            .extend_ttl(INSTANCE_TTL_THRESHOLD, INSTANCE_TTL_EXTEND_TO);
+
+        env.events().publish(
+            (symbol_short!("inspect"), symbol_short!("start")),
+            (circle_id, caller, inspection_deadline),
+        );
+
+        Ok(())
+    }
+
+    /// Confirms delivery and releases escrow settlement to the seller following inspection.
+    pub fn confirm_inspection_and_settle(
+        env: Env,
+        caller: Address,
+        circle_id: u64,
+    ) -> Result<(), Error> {
+        caller.require_auth();
+
+        let circle: DemandCircle = env
+            .storage()
+            .instance()
+            .get(&DataKey::Circle(circle_id))
+            .ok_or(Error::CircleNotFound)?;
+
+        if circle.creator != caller {
+            return Err(Error::Unauthorized);
+        }
+
+        if circle.status != CircleStatus::Inspection {
+            return Err(Error::NotUnderInspection);
+        }
+
+        let winning_offer_id = circle.accepted_offer_id.ok_or(Error::OfferNotFound)?;
+        Self::settle_deal(env, circle_id, winning_offer_id)
+    }
+
     /// Settle a demand circle with a winning seller offer.
     ///
     /// Follows the Checks-Effects-Interactions (CEI) security pattern:
@@ -541,7 +615,7 @@ impl BazaarDealEngineContract {
             .get(&DataKey::Circle(circle_id))
             .ok_or(Error::CircleNotFound)?;
 
-        if circle.status != CircleStatus::QuorumReached {
+        if circle.status != CircleStatus::QuorumReached && circle.status != CircleStatus::Inspection {
             return Err(Error::QuorumNotReached);
         }
 
