@@ -51,3 +51,4 @@ Contract: `contracts/bazaar_deal_engine`
 | **18** | `RegistryError` | Cross-contract call to `DemandCircleRegistry` failed. | Ensure target registry contract address is valid and initialized. |
 | **19** | `PriceExceedsTarget` | Seller offer unit price exceeds the circle's maximum acceptable price. | Submit a quote at or below `target_unit_price`. |
 | **20** | `DuplicateOffer` | Seller already has an active offer for this circle. | Sellers may only have one submitted quote per circle. |
+| **21** | `NotUnderInspection` | Settlement attempted via inspection confirmation on a circle not in Inspection state. | Circle must enter inspection phase before delivery confirmation settlement. |
