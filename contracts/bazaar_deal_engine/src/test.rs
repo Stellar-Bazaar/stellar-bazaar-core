@@ -526,3 +526,59 @@ fn test_dispute_deal_initiation_and_authorization_guards() {
     let dup_dispute = client.try_dispute_deal(&creator, &circle_id, &Symbol::new(&env, "LATE"));
     assert_eq!(dup_dispute, Err(Ok(Error::DisputeAlreadyOpen)));
 }
+
+#[test]
+fn test_dispute_resolution_with_buyer_refund() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let non_admin = Address::generate(&env);
+    let creator = Address::generate(&env);
+    let buyer = Address::generate(&env);
+    let seller = Address::generate(&env);
+
+    let token_admin = Address::generate(&env);
+    let token_contract = env.register_stellar_asset_contract_v2(token_admin);
+    let token_client = token::Client::new(&env, &token_contract.address());
+    let token_admin_client = StellarAssetClient::new(&env, &token_contract.address());
+    token_admin_client.mint(&buyer, &100_000_000);
+
+    let contract_id = env.register(BazaarDealEngineContract, ());
+    let client = BazaarDealEngineContractClient::new(&env, &contract_id);
+    client.initialize(&admin);
+
+    let circle_id = client.create_circle(
+        &creator,
+        &token_contract.address(),
+        &10_000_000,
+        &5,
+        &20,
+        &86400,
+    );
+
+    client.commit_demand(&buyer, &circle_id, &5);
+    let offer_id = client.submit_seller_offer(&seller, &circle_id, &9_000_000, &10, &3);
+    client.accept_seller_offer(&creator, &circle_id, &offer_id);
+    client.initiate_inspection(&creator, &circle_id, &86400);
+
+    client.dispute_deal(&buyer, &circle_id, &Symbol::new(&env, "NON_CONFORMING"));
+
+    // Unauthorized non-admin cannot resolve dispute
+    let unauth_res = client.try_resolve_dispute(&non_admin, &circle_id, &true);
+    assert_eq!(unauth_res, Err(Ok(Error::Unauthorized)));
+
+    // Admin resolves dispute in favor of buyers (refund_to_buyers: true)
+    client.resolve_dispute(&admin, &circle_id, &true);
+    let circle = client.get_circle(&circle_id);
+    assert_eq!(circle.status, CircleStatus::Cancelled);
+
+    // Buyer reclaims 100% refund
+    client.claim_refund(&buyer, &circle_id);
+    assert_eq!(token_client.balance(&buyer), 100_000_000);
+
+    // Seller reputation tracks disputed deal penalty
+    let rep = client.get_seller_reputation(&seller);
+    assert_eq!(rep.disputed_or_refunded_deals, 1);
+    assert_eq!(rep.successful_deals, 0);
+}
