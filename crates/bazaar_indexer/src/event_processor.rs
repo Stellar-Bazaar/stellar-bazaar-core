@@ -148,3 +148,87 @@ impl EventProcessor {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::sqlite_repository::SqliteBazaarRepository;
+
+    #[test]
+    fn test_process_circle_and_commitment_events() {
+        let mut repo = SqliteBazaarRepository::new_in_memory().unwrap();
+
+        // 1. Process CircleCreated
+        let create_event = BazaarContractEvent::CircleCreated {
+            circle_id: 1,
+            creator: "GBCREATOR".to_string(),
+            target_unit_price: 10_000_000,
+            min_volume: 10,
+            max_volume: 50,
+            deadline: 1700000000,
+        };
+        EventProcessor::process_event(&mut repo, create_event, 100, "tx_1").unwrap();
+
+        let circle = repo.get_circle("1").unwrap().unwrap();
+        assert_eq!(circle.status, "OPEN");
+        assert_eq!(circle.current_volume, 0);
+
+        // 2. Process DemandCommitted reaching quorum
+        let commit_event = BazaarContractEvent::DemandCommitted {
+            circle_id: 1,
+            buyer: "GBUYER".to_string(),
+            quantity: 10,
+            amount: 100_000_000,
+        };
+        EventProcessor::process_event(&mut repo, commit_event, 101, "tx_2").unwrap();
+
+        let updated_circle = repo.get_circle("1").unwrap().unwrap();
+        assert_eq!(updated_circle.current_volume, 10);
+        assert_eq!(updated_circle.status, "QUORUM_REACHED");
+
+        let commitments = repo.get_commitments_for_circle("1").unwrap();
+        assert_eq!(commitments.len(), 1);
+        assert_eq!(commitments[0].quantity, 10);
+    }
+
+    #[test]
+    fn test_process_dispute_and_settlement_events() {
+        let mut repo = SqliteBazaarRepository::new_in_memory().unwrap();
+
+        let create_event = BazaarContractEvent::CircleCreated {
+            circle_id: 5,
+            creator: "GBCREATOR".to_string(),
+            target_unit_price: 20_000_000,
+            min_volume: 5,
+            max_volume: 20,
+            deadline: 1700000000,
+        };
+        EventProcessor::process_event(&mut repo, create_event, 200, "tx_c").unwrap();
+
+        // Process DisputeOpened
+        let disp_event = BazaarContractEvent::DisputeOpened {
+            circle_id: 5,
+            caller: "GBUYER1".to_string(),
+            reason: "DAMAGED".to_string(),
+        };
+        EventProcessor::process_event(&mut repo, disp_event, 205, "tx_d").unwrap();
+
+        let circle_disp = repo.get_circle("5").unwrap().unwrap();
+        assert_eq!(circle_disp.status, "DISPUTED");
+
+        let disputes = repo.get_disputes_for_circle("5").unwrap();
+        assert_eq!(disputes.len(), 1);
+        assert_eq!(disputes[0].dispute_reason, "DAMAGED");
+
+        // Process DealSettled
+        let settle_event = BazaarContractEvent::DealSettled {
+            circle_id: 5,
+            winning_offer_id: 2,
+            seller_payout: 95_000_000,
+        };
+        EventProcessor::process_event(&mut repo, settle_event, 210, "tx_s").unwrap();
+
+        let circle_settled = repo.get_circle("5").unwrap().unwrap();
+        assert_eq!(circle_settled.status, "SETTLED");
+    }
+}
