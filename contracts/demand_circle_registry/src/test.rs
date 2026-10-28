@@ -80,6 +80,52 @@ fn test_validation_rules_reject_invalid_inputs() {
     let res_short_deadline =
         client.try_create_circle(&creator, &valid_title, &valid_uri, &10, &10_000_000, &30);
     assert_eq!(res_short_deadline, Err(Ok(Error::InvalidDeadline)));
+
+    // Empty metadata URI should fail
+    let empty_uri = String::from_str(&env, "");
+    let res_empty_uri =
+        client.try_create_circle(&creator, &valid_title, &empty_uri, &10, &10_000_000, &86400);
+    assert_eq!(res_empty_uri, Err(Ok(Error::InvalidMetadataUri)));
+}
+
+#[test]
+fn test_zero_quantity_explicit_rejection() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let creator = Address::generate(&env);
+
+    let contract_id = env.register(DemandCircleRegistryContract, ());
+    let client = DemandCircleRegistryContractClient::new(&env, &contract_id);
+    client.initialize(&admin);
+
+    let title = String::from_str(&env, "Zero Quantity Batch");
+    let uri = String::from_str(&env, "ipfs://bafyzero");
+
+    let result = client.try_create_circle(&creator, &title, &uri, &0, &50_000_000, &3600);
+    assert_eq!(result, Err(Ok(Error::InvalidQuantity)));
+}
+
+#[test]
+fn test_metadata_uri_upper_bound_rejection() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let creator = Address::generate(&env);
+
+    let contract_id = env.register(DemandCircleRegistryContract, ());
+    let client = DemandCircleRegistryContractClient::new(&env, &contract_id);
+    client.initialize(&admin);
+
+    let title = String::from_str(&env, "Oversized URI");
+    // Build a URI > 256 bytes (300 chars)
+    let long_uri_str = "https://example.com/metadata/oversized/deeply/nested/path/to/product/specifications/and/images/which/exceeds/the/maximum/allowed/length/of/two/hundred/and/fifty/six/bytes/in/order/to/prevent/unbounded/soroban/storage/bloat/and/ledger/footprint/amplification/test/long/string/padding/1234567890/abcdefghijklmnopqrstuv";
+    let oversized_uri = String::from_str(&env, long_uri_str);
+
+    let result = client.try_create_circle(&creator, &title, &oversized_uri, &10, &10_000_000, &3600);
+    assert_eq!(result, Err(Ok(Error::InvalidMetadataUri)));
 }
 
 #[test]
@@ -140,4 +186,36 @@ fn test_circle_expiration_lifecycle() {
     client.expire_circle(&id);
     let expired_circle = client.get_circle(&id);
     assert_eq!(expired_circle.status, CircleStatus::Expired);
+}
+
+#[test]
+fn test_circle_expiration_exact_deadline_boundary() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let creator = Address::generate(&env);
+
+    let contract_id = env.register(DemandCircleRegistryContract, ());
+    let client = DemandCircleRegistryContractClient::new(&env, &contract_id);
+    client.initialize(&admin);
+
+    env.ledger().set_timestamp(1000);
+    let title = String::from_str(&env, "Boundary Expiry Test");
+    let uri = String::from_str(&env, "ipfs://boundary");
+    let id = client.create_circle(&creator, &title, &uri, &15, &20_000_000, &500); // deadline = 1500
+
+    let circle = client.get_circle(&id);
+    assert_eq!(circle.deadline, 1500);
+
+    // Timestamp exactly at deadline (1500) -> should NOT be expired yet (must be strictly greater)
+    env.ledger().set_timestamp(1500);
+    let res_exact = client.try_expire_circle(&id);
+    assert_eq!(res_exact, Err(Ok(Error::DeadlineNotPassed)));
+
+    // Timestamp 1 second past deadline (1501) -> succeeds
+    env.ledger().set_timestamp(1501);
+    client.expire_circle(&id);
+    let circle_after = client.get_circle(&id);
+    assert_eq!(circle_after.status, CircleStatus::Expired);
 }
