@@ -64,3 +64,27 @@ pub struct IndexerCheckpointRecord {
     pub latest_ledger_sequence: u64,
     pub updated_at_timestamp: i64,
 }
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct DisputeRecord {
+    pub id: String,
+    pub circle_id: String,
+    pub initiator_address: String,
+    pub dispute_reason: String,
+    pub status: String,
+    pub resolution_refund_to_buyers: Option<bool>,
+    pub opened_at_timestamp: i64,
+    pub resolved_at_timestamp: Option<i64>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+pub struct ProtocolFeeRecord {
+    pub id: String,
+    pub circle_id: String,
+    pub gross_payout_stroops: String,
+    pub fee_bps: u32,
+    pub fee_stroops: String,
+    pub net_payout_stroops: String,
+    pub treasury_address: String,
+    pub settled_at_timestamp: i64,
+}
