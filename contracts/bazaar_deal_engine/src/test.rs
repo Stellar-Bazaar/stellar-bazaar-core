@@ -582,3 +582,56 @@ fn test_dispute_resolution_with_buyer_refund() {
     assert_eq!(rep.disputed_or_refunded_deals, 1);
     assert_eq!(rep.successful_deals, 0);
 }
+
+#[test]
+fn test_dispute_resolution_with_seller_settlement() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let creator = Address::generate(&env);
+    let buyer = Address::generate(&env);
+    let seller = Address::generate(&env);
+
+    let token_admin = Address::generate(&env);
+    let token_contract = env.register_stellar_asset_contract_v2(token_admin);
+    let token_client = token::Client::new(&env, &token_contract.address());
+    let token_admin_client = StellarAssetClient::new(&env, &token_contract.address());
+    token_admin_client.mint(&buyer, &100_000_000);
+
+    let contract_id = env.register(BazaarDealEngineContract, ());
+    let client = BazaarDealEngineContractClient::new(&env, &contract_id);
+    client.initialize(&admin);
+
+    let circle_id = client.create_circle(
+        &creator,
+        &token_contract.address(),
+        &10_000_000,
+        &5,
+        &20,
+        &86400,
+    );
+
+    client.commit_demand(&buyer, &circle_id, &5);
+    let offer_id = client.submit_seller_offer(&seller, &circle_id, &9_000_000, &10, &3);
+    client.accept_seller_offer(&creator, &circle_id, &offer_id);
+    client.initiate_inspection(&creator, &circle_id, &86400);
+
+    // Buyer opens dispute
+    client.dispute_deal(&buyer, &circle_id, &Symbol::new(&env, "PACKAGING_ISSUE"));
+
+    // Admin resolves dispute in favor of seller (refund_to_buyers: false)
+    client.resolve_dispute(&admin, &circle_id, &false);
+    let circle = client.get_circle(&circle_id);
+    assert_eq!(circle.status, CircleStatus::Settled);
+
+    // Verify seller received net payout (45_000_000 gross minus 1% fee 450_000)
+    assert_eq!(token_client.balance(&seller), 44_550_000);
+    // Treasury received fee
+    assert_eq!(token_client.balance(&admin), 450_000);
+
+    // Seller reputation tracks successful deal
+    let rep = client.get_seller_reputation(&seller);
+    assert_eq!(rep.successful_deals, 1);
+    assert_eq!(rep.disputed_or_refunded_deals, 0);
+}
