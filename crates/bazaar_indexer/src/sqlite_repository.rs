@@ -515,4 +515,82 @@ mod tests {
         assert_eq!(fees.len(), 1);
         assert_eq!(fees[0].fee_bps, 200);
     }
+
+    #[test]
+    fn test_sqlite_repository_queries_active_circles_and_top_sellers() {
+        let mut repo = SqliteBazaarRepository::new_in_memory().unwrap();
+
+        let c1 = DemandCircleRecord {
+            id: "c1".to_string(),
+            title: "Circle 1".to_string(),
+            category: "Cat1".to_string(),
+            target_unit_price_xlm: "10.0".to_string(),
+            min_volume: 5,
+            max_volume: 20,
+            current_volume: 5,
+            status: "OPEN".to_string(),
+            creator_address: "G1".to_string(),
+            deadline_timestamp: 1800000000,
+        };
+        let c2 = DemandCircleRecord {
+            id: "c2".to_string(),
+            title: "Circle 2".to_string(),
+            category: "Cat2".to_string(),
+            target_unit_price_xlm: "20.0".to_string(),
+            min_volume: 10,
+            max_volume: 50,
+            current_volume: 10,
+            status: "INSPECTION".to_string(),
+            creator_address: "G2".to_string(),
+            deadline_timestamp: 1800000000,
+        };
+        let c3 = DemandCircleRecord {
+            id: "c3".to_string(),
+            title: "Circle 3".to_string(),
+            category: "Cat3".to_string(),
+            target_unit_price_xlm: "30.0".to_string(),
+            min_volume: 10,
+            max_volume: 50,
+            current_volume: 0,
+            status: "CANCELLED".to_string(),
+            creator_address: "G3".to_string(),
+            deadline_timestamp: 1800000000,
+        };
+
+        repo.record_circle(c1).unwrap();
+        repo.record_circle(c2).unwrap();
+        repo.record_circle(c3).unwrap();
+
+        let active = repo.list_active_circles().unwrap();
+        assert_eq!(active.len(), 2);
+        assert!(active.iter().any(|c| c.id == "c1"));
+        assert!(active.iter().any(|c| c.id == "c2"));
+        assert!(!active.iter().any(|c| c.id == "c3"));
+
+        // Sellers
+        let s1 = SellerReputationRecord {
+            seller_address: "SELLER_A".to_string(),
+            successful_deals: 5,
+            total_volume_settled: 100,
+            total_amount_settled_xlm: "5000.0".to_string(),
+            disputed_or_refunded_deals: 0,
+            score_percentage: 95,
+        };
+        let s2 = SellerReputationRecord {
+            seller_address: "SELLER_B".to_string(),
+            successful_deals: 12,
+            total_volume_settled: 300,
+            total_amount_settled_xlm: "15000.0".to_string(),
+            disputed_or_refunded_deals: 0,
+            score_percentage: 99,
+        };
+
+        repo.record_reputation(s1).unwrap();
+        repo.record_reputation(s2).unwrap();
+
+        let top_sellers = repo.list_top_sellers(5).unwrap();
+        assert_eq!(top_sellers.len(), 2);
+        assert_eq!(top_sellers[0].seller_address, "SELLER_B");
+        assert_eq!(top_sellers[1].seller_address, "SELLER_A");
+    }
 }
