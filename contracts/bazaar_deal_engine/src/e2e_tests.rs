@@ -280,3 +280,39 @@ fn test_e2e_arbitrator_dispute_resolution() {
     fix.deal_client.claim_refund(&fix.buyers[0], &circle_id);
     assert_eq!(fix.token_client.balance(&fix.buyers[0]), 1_000_000_000);
 }
+
+#[test]
+fn test_e2e_unauthorized_dispute_resolution_rejection() {
+    let env = Env::default();
+    let fix = E2EFixture::new(&env);
+
+    let circle_id = fix.deal_client.create_circle(
+        &fix.creator,
+        &fix.token_address,
+        &10_000_000,
+        &10,
+        &50,
+        &86_400,
+    );
+
+    fix.deal_client.commit_demand(&fix.buyers[0], &circle_id, &5);
+    fix.deal_client.commit_demand(&fix.buyers[1], &circle_id, &5);
+
+    let offer_id = fix.deal_client.submit_seller_offer(
+        &fix.seller,
+        &circle_id,
+        &8_500_000,
+        &20,
+        &5,
+    );
+
+    fix.deal_client.accept_seller_offer(&fix.creator, &circle_id, &offer_id);
+    fix.deal_client.initiate_inspection(&fix.creator, &circle_id, &86_400);
+
+    fix.deal_client.dispute_deal(&fix.buyers[0], &circle_id, &symbol_short!("damaged"));
+
+    // Unauthorized non-admin attempts resolution
+    let unauthorized_caller = Address::generate(&env);
+    let err = fix.deal_client.try_resolve_dispute(&unauthorized_caller, &circle_id, &true);
+    assert_eq!(err, Err(Ok(Error::Unauthorized)));
+}
