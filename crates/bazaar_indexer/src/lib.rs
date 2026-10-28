@@ -7,6 +7,7 @@ pub mod config;
 pub mod state;
 pub mod rpc_client;
 pub mod event_processor;
+pub mod checkpoint;
 
 use domain::*;
 use thiserror::Error;
