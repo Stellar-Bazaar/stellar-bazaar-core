@@ -3,6 +3,7 @@ pub mod domain;
 pub mod event_filter;
 pub mod sqlite_repository;
 pub mod event_decoder;
+pub mod config;
 
 use domain::*;
 use thiserror::Error;
