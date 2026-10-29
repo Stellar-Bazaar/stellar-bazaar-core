@@ -1,4 +1,4 @@
-.PHONY: all build test lint fmt audit clean doc deploy-testnet simulate-dispute simulate-e2e indexer-test indexer-run sdk-test docker-build docker-compose-up help
+.PHONY: all build test lint fmt audit clean doc deploy-testnet simulate-dispute simulate-e2e indexer-test indexer-run sdk-test docker-build docker-compose-up verify-all help
 
 # Default target
 all: test
@@ -22,6 +22,7 @@ help:
 	@echo "  make sdk-test        - Run @stellar-bazaar/sdk unit tests and type checks"
 	@echo "  make docker-build    - Build indexer Docker image"
 	@echo "  make docker-compose-up - Launch indexer container via docker-compose"
+	@echo "  make verify-all      - Execute master verification suite across all 319+ tests"
 
 build:
 	cargo build --workspace --all-targets
@@ -73,3 +74,6 @@ docker-build:
 
 docker-compose-up:
 	docker compose up -d
+
+verify-all:
+	powershell -ExecutionPolicy Bypass -File ./scripts/verify_entire_system.ps1
