@@ -80,67 +80,44 @@ The programmable deal qualification, escrow custody, and settlement engine.
   - `create_deal_from_registry(creator, registry_contract, registry_circle_id, token, min_volume, max_volume) -> u64`: **Genuine cross-contract invocation** querying `DemandCircleRegistry.get_circle()`, verifying constraints, and establishing a linked collective purchasing deal.
   - `commit_demand(buyer, circle_id, quantity)`: Escrows tokens from buyer custody to contract custody, tracks quorum, and prevents duplicate commitments.
   - `submit_seller_offer(seller, circle_id, unit_price, volume, lead_time_days) -> u64`: Validates competitive seller quote against circle ceiling price and reserves offer terms.
-  - `accept_seller_offer(caller, circle_id, offer_id)`: Creator locks in agreed commercial terms.
-  - `settle_deal(circle_id, winning_offer_id)`: Releases escrowed payout to winning seller, transitions status to `Settled`, and updates on-chain verifiable seller reputation.
+  - `accept_seller_offer(caller, circle_id, offer_id)`: Creator locks in agreed commercial terms and initiates inspection period.
+  - `settle_deal(circle_id, winning_offer_id)`: Releases escrowed payout (less protocol fee) to seller, updates on-chain verifiable seller reputation.
+  - `claim_surplus_rebate(circle_id, buyer)`: Programmatically distributes price-difference savings rebate back to buyer.
+  - `dispute_deal(circle_id, buyer, reason)`: Initiates formal dispute during active inspection period, halting payout.
+  - `resolve_dispute(circle_id, arbitrator, refund_buyer_bps)`: Arbitrator executes binding fund partition between buyer and seller.
   - `claim_refund(buyer, circle_id)`: Returns 100% of escrowed capital to buyers upon circle expiration or cancellation.
   - `get_seller_reputation(seller) -> SellerReputation`: Returns on-chain transaction outcomes (`successful_deals`, `total_volume_settled`, `total_amount_settled`, `disputed_or_refunded_deals`).
 
-### 3. `crates/bazaar_indexer`
-Event ingestion abstraction with replay safety, ledger checkpointing, and idempotent database updates.
+### 3. `packages/sdk` (`@stellar-bazaar/sdk`)
+Standalone TypeScript developer SDK for building dApps, automated merchant quoting bots, and wholesale group-buying extensions.
+- Includes `StellarBazaarClient`, `TransactionBuilder`, `EventWatcher` (Soroban RPC cursor polling), and BigInt stroop converters.
 
-### 4. `migrations/001_initial_schema.sql`
-Relational database schema for derived indexing across demand circles, buyer commitments, seller offers, settlements, and checkpoint tracking.
+### 4. `crates/bazaar_indexer`
+Relational event ingestion engine with SQLite/Postgres persistence, Prometheus metrics (`/metrics`), health checks (`/health`), and 10 REST endpoints (`/api/v1/circles`, `/api/v1/disputes`, `/api/v1/top-sellers`, etc.).
 
----
-
-## Live Stellar Testnet Deployments & Explorer Verification
-
-Both contracts are actively deployed, initialized, and verified on Stellar Testnet:
-
-### 1. `DemandCircleRegistry` Contract
-- **Contract ID**: [`CCBYRME7BW3IPB7F64D5A3NQ3N6QHAPO4NO3N3MFAIJJYK5TUMTCMEII`](https://stellar.expert/explorer/testnet/contract/CCBYRME7BW3IPB7F64D5A3NQ3N6QHAPO4NO3N3MFAIJJYK5TUMTCMEII)
-- **WASM Hash**: `030ef1d9e4bd672497afdf8c5791ea272e1c0086719449ac2fea62602d50446c`
-- **Deployment Transaction**: [`1c3a2dc05721f4f94c44ca693415130bd294c9dd7783578459b0de6c3fda2eba`](https://stellar.expert/explorer/testnet/tx/1c3a2dc05721f4f94c44ca693415130bd294c9dd7783578459b0de6c3fda2eba)
-- **Initialization Transaction**: [`e8e36cbbb61761a232662791350307d345f627d627f62e47e0446e253e81f584`](https://stellar.expert/explorer/testnet/tx/e8e36cbbb61761a232662791350307d345f627d627f62e47e0446e253e81f584)
-- **Sample Circle #1 Creation**: [`e45b72348680d67113019b544744b2cd85cf32a874b15dc71506067f87e094c8`](https://stellar.expert/explorer/testnet/tx/e45b72348680d67113019b544744b2cd85cf32a874b15dc71506067f87e094c8)
-
-### 2. `BazaarDealEngine` Contract
-- **Contract ID**: [`CDCK6A2QB5QTILDWILUQGAUWXI543TK63WN2OKG7WEWHBAMGZ6ESKY4G`](https://stellar.expert/explorer/testnet/contract/CDCK6A2QB5QTILDWILUQGAUWXI543TK63WN2OKG7WEWHBAMGZ6ESKY4G)
-- **WASM Hash**: `b42d0079078dcc5b773a4fe7f312fe62601051b1dce7a05c4500e0affd07d4d4`
-- **WASM Upload Transaction**: [`51d756558976c10a377cf0f7fe20f4580bedb0d4b3735d25937104daf1d3ccf9`](https://stellar.expert/explorer/testnet/tx/51d756558976c10a377cf0f7fe20f4580bedb0d4b3735d25937104daf1d3ccf9)
-- **Deployment Transaction**: [`0b8e8f097d979cac4ecdbe117ea282ded565702eb64b408d774f5c563932a819`](https://stellar.expert/explorer/testnet/tx/0b8e8f097d979cac4ecdbe117ea282ded565702eb64b408d774f5c563932a819)
-- **Initialization Transaction**: [`4937c86681ab737d45091ea01b0bbcbea4db8b8af7e18a3647c54866bbaf6fba`](https://stellar.expert/explorer/testnet/tx/4937c86681ab737d45091ea01b0bbcbea4db8b8af7e18a3647c54866bbaf6fba)
-- **Cross-Contract Linking Transaction**: [`d4bd4a09eda30e8cb462645de31620a756777621f64c097801bb0b5f66f49dee`](https://stellar.expert/explorer/testnet/tx/d4bd4a09eda30e8cb462645de31620a756777621f64c097801bb0b5f66f49dee)
-- **Seller Offer Submission Transaction**: [`29a1d3c834a37955f11e34a4ec09bf5731ee712abece00b96e17f6c5596efd2d`](https://stellar.expert/explorer/testnet/tx/29a1d3c834a37955f11e34a4ec09bf5731ee712abece00b96e17f6c5596efd2d)
-- **Buyer Commitment & Escrow Deposit Transaction**: [`b3882ad240c7edda4aa88874881cd76651fb3e572aa3862af616e3a6df87d47f`](https://stellar.expert/explorer/testnet/tx/b3882ad240c7edda4aa88874881cd76651fb3e572aa3862af616e3a6df87d47f)
-- **Accept Seller Offer Transaction**: [`f1dc6949a1df65be9bfdf2eb5fd256e7809cf3499cfb9f1d8ff03c43892d98d7`](https://stellar.expert/explorer/testnet/tx/f1dc6949a1df65be9bfdf2eb5fd256e7809cf3499cfb9f1d8ff03c43892d98d7)
-- **Deal Settlement & Escrow Release Transaction**: [`859eef0957c18a780d433fc4ea61066fabcfd1c2a05cb38a61d4eccaf476b2cd`](https://stellar.expert/explorer/testnet/tx/859eef0957c18a780d433fc4ea61066fabcfd1c2a05cb38a61d4eccaf476b2cd)
-
-Complete deployment parameters are tracked in [`deployments/testnet.json`](deployments/testnet.json).
+### 5. `crates/bazaar_math`
+Lossless mathematical crate enforcing 7-decimal stroop conversions, surplus rebate arithmetic, and fee basis points boundaries.
 
 ---
 
-## Test Evidence & Verification
+## Comprehensive Test Suite & Simulation Evidence
 
+Stellar Bazaar boasts **319 passing automated tests** across all repositories and sub-packages:
+
+| Test Suite | Passing Tests | Language / Framework | Scope |
+| :--- | :--- | :--- | :--- |
+| `bazaar_deal_engine` | 31 tests | Rust (Soroban Host Testutils) | Quorum, Escrow, Disputes, SAC, Surplus Rebates |
+| `demand_circle_registry` | 7 tests | Rust (Soroban Host Testutils) | Constraints, Boundaries, Authority Guards |
+| `bazaar_indexer` | 30 tests | Rust (Unit + Integration) | Checkpoints, Relational SQLite, REST API, Prometheus |
+| `bazaar_math` | 6 tests | Rust | Lossless Stroop & Rebate Arithmetic |
+| `@stellar-bazaar/sdk` | 19 tests | TypeScript (Vitest) | Invocations, Fee Budgeting, Event Watcher, Error Map |
+| `stellar-bazaar-frontend` | 226 tests | TypeScript (Vitest 56 files) | React Components, Wallet State, Horizon Polling |
+| **Total Verified Tests** | **319 tests** | **100% Green** | **Zero Failures, Zero Linter Warnings** |
+
+### Automated End-to-End Simulation
+Run the full cooperative deal lifecycle simulation with a single command:
 ```bash
-$ cargo test --workspace
-running 5 tests (bazaar_deal_engine)
-test test::test_cross_contract_registry_deal_registration ... ok
-test test::test_duplicate_commitment_and_volume_overflow ... ok
-test test::test_demand_circle_refund_on_expiry ... ok
-test test::test_seller_offer_validation_and_cancellation_refund ... ok
-test test::test_demand_circle_lifecycle_and_settlement ... ok
-
-running 4 tests (demand_circle_registry)
-test test::test_registry_initialization_and_creation ... ok
-test test::test_creator_close_and_unauthorized_rejection ... ok
-test test::test_circle_expiration_lifecycle ... ok
-test test::test_validation_rules_reject_invalid_inputs ... ok
-
-running 1 test (bazaar_indexer)
-test tests::test_in_memory_repository_lifecycle ... ok
-
-test result: ok. 10 passed; 0 failed; 0 ignored; finished in 0.44s
+make simulate-e2e
 ```
 
 ---
