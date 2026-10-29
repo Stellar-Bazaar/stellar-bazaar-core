@@ -1,13 +1,15 @@
 # Stellar Bazaar Core (`stellar-bazaar-core`)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Live DApp](https://img.shields.io/badge/Live%20DApp-stellar--bazaar--dapp.netlify.app-00C7B7.svg)](https://stellar-bazaar-dapp.netlify.app)
+[![Live DApp](https://img.shields.io/badge/Live%20DApp-GitHub%20Pages-00C7B7.svg)](https://stellar-bazaar.github.io/stellar-bazaar-frontend/)
+[![Netlify Mirror](https://img.shields.io/badge/Netlify-Mirror-00AD9F.svg)](https://stellar-bazaar-dapp.netlify.app)
 [![Soroban](https://img.shields.io/badge/Soroban-Protocol_22-green.svg)](https://soroban.stellar.org)
 [![Rust](https://img.shields.io/badge/Rust-1.80+-orange.svg)](https://www.rust-lang.org)
 [![Stellar](https://img.shields.io/badge/Stellar-Testnet-black.svg)](https://stellar.org)
 [![CI](https://img.shields.io/badge/CI-Passing-brightgreen.svg)](https://github.com/Stellar-Bazaar/stellar-bazaar-core/actions)
 
-> **Live Decentralized Application**: [https://stellar-bazaar-dapp.netlify.app](https://stellar-bazaar-dapp.netlify.app)
+> **Live Production Deployment**: [https://stellar-bazaar.github.io/stellar-bazaar-frontend/](https://stellar-bazaar.github.io/stellar-bazaar-frontend/)  
+> **Netlify Mirror**: [https://stellar-bazaar-dapp.netlify.app](https://stellar-bazaar-dapp.netlify.app)
 
 The core architecture, Soroban smart contracts, deployment automation, and event-indexing abstractions for **Stellar Bazaar** — a demand-driven marketplace on Stellar where buyers coordinate collective purchasing demand, sellers submit competing quotes, and Soroban smart contracts enforce commercial rules, escrow custody, quorum qualification, settlement, and verifiable on-chain reputation.
 
@@ -19,7 +21,7 @@ The core architecture, Soroban smart contracts, deployment automation, and event
 +-------------------------------------------------------------+
 |                     stellar-bazaar-frontend                 |
 |            (Multi-Wallet / Soroban RPC / Vite + React)      |
-|               https://stellar-bazaar-dapp.netlify.app       |
+|     https://stellar-bazaar.github.io/stellar-bazaar-frontend/  |
 +------------------------------+------------------------------+
                                |
                    Simulate / Submit / Events
