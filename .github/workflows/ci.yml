@@ -47,9 +47,22 @@ jobs:
           cargo rustc -p demand-circle-registry --target wasm32-unknown-unknown --release --crate-type=cdylib
           cargo rustc -p bazaar-deal-engine --target wasm32-unknown-unknown --release --crate-type=cdylib
 
-      - name: Validate Contract Artifact Sizes
+      - name: Validate Contract Artifact Sizes & Enforce Budget
         run: |
-          ls -la target/wasm32-unknown-unknown/release/*.wasm
+          echo "Checking compiled WASM contract sizes..."
+          MAX_BYTES=262144 # 256 KB Soroban deployable budget
+          for wasm in target/wasm32-unknown-unknown/release/*.wasm; do
+            if [ -f "$wasm" ]; then
+              SIZE=$(wc -c < "$wasm")
+              NAME=$(basename "$wasm")
+              echo "Contract $NAME: $SIZE bytes (Budget: $MAX_BYTES bytes)"
+              if [ "$SIZE" -gt "$MAX_BYTES" ]; then
+                echo "Error: Contract $NAME ($SIZE bytes) exceeds Soroban budget of $MAX_BYTES bytes!"
+                exit 1
+              fi
+            fi
+          done
+          echo "All compiled Soroban contracts within size budget."
 
       - name: Security Vulnerability Audit
         run: |
