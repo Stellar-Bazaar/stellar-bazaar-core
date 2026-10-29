@@ -89,11 +89,13 @@ Stellar Bazaar operates across three distinct security domains:
   - The Soroban runtime execution model prohibits arbitrary reentrancy.
   - Follows Checks-Effects-Interactions: Storage mutations and status transitions precede external token client transfers.
 
-### 2.8 Administrative & Dispute Powers
-- **Threat**: Centralized administrators arbitrarily seizing or redirecting buyer escrow funds.
+### 2.8 Administrative, Dispute & Fee Bounds
+- **Threat**: Centralized administrators arbitrarily seizing escrow funds, raising fees extortionately, or unfair dispute arbitrations.
 - **Mitigation**:
   - Minimal trusted authority: Contract administrator cannot withdraw escrow capital or modify winning payout parameters.
-  - All fund flows are programmatic: escrow is released strictly to the winning seller or refunded 100% to buyers.
+  - Protocol fee upper bound: Protocol fees are strictly bounded at contract level to a maximum of 1,000 basis points (10%). Attempts to set higher fees unconditionally panic with `Error::InvalidFeeBps`.
+  - Dispute resolution checks: Disputes can only be initiated during the active inspection window (`InspectionPeriodActive`), and can only be resolved by the designated arbitrator (`UnauthorizedArbitrator`).
+  - Programmatic escrow flows: Escrow is released strictly to the winning seller (less verified protocol fees), or refunded back to buyers on dispute / failure.
 
 ### 2.9 Indexer Outages and Stale Backend State
 - **Threat**: Frontend showing stale or out-of-sync state due to indexer lag.
@@ -118,6 +120,22 @@ Stellar Bazaar operates across three distinct security domains:
 
 ## 3. Incident Response & Responsible Disclosure
 
+### 3.1 Supported Component Versions
+| Component | Supported Version | Status |
+| :--- | :--- | :--- |
+| `bazaar_deal_engine` (Soroban) | `>= 0.1.0` (Latest `main`) | :white_check_mark: Supported |
+| `demand_circle_registry` (Soroban) | `>= 0.1.0` (Latest `main`) | :white_check_mark: Supported |
+| `bazaar_math` | `>= 0.1.0` (Latest `main`) | :white_check_mark: Supported |
+| `bazaar-indexer` | `>= 0.1.0` (Latest `main`) | :white_check_mark: Supported |
+| `@stellar-bazaar/sdk` | `>= 0.1.0` (Latest `main`) | :white_check_mark: Supported |
+
+### 3.2 Reporting Channels & Response SLA
 To report a security vulnerability or anomalous contract execution:
 - Contact: `security@stellarbazaar.io`
+- PGP Fingerprint: `E4F2 91A8 BC03 7261 9A02 44BF C109 82E1 7D02 3B41`
 - Include: Detailed reproduction steps, transaction hashes, and affected contract addresses.
+
+Response SLA:
+- **Acknowledgement**: Within 24 hours.
+- **Triage & Reproduction**: Within 48 hours.
+- **Remediation & Patch Deployment**: Within 7 business days depending on severity.
