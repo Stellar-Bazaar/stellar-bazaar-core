@@ -1,4 +1,4 @@
-.PHONY: all build test lint fmt audit clean doc deploy-testnet simulate-dispute simulate-e2e indexer-test indexer-run help
+.PHONY: all build test lint fmt audit clean doc deploy-testnet simulate-dispute simulate-e2e indexer-test indexer-run sdk-test help
 
 # Default target
 all: test
@@ -19,6 +19,7 @@ help:
 	@echo "  make simulate-e2e    - Execute full end-to-end cooperative lifecycle simulation"
 	@echo "  make indexer-test    - Run Soroban event indexer test suite"
 	@echo "  make indexer-run     - Run indexer daemon dry run validation"
+	@echo "  make sdk-test        - Run @stellar-bazaar/sdk unit tests and type checks"
 
 build:
 	cargo build --workspace --all-targets
@@ -61,3 +62,6 @@ indexer-test:
 
 indexer-run:
 	cargo run -p bazaar-indexer -- --dry-run
+
+sdk-test:
+	powershell -ExecutionPolicy Bypass -File ./scripts/test_sdk.ps1
