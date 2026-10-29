@@ -9,9 +9,9 @@ license.workspace = true
 crate-type = ["rlib"]
 
 [dependencies]
-soroban-sdk = "22.0.11"
+soroban-sdk = "29.0.1"
 bazaar-math = { path = "../../crates/bazaar_math" }
 
 [dev-dependencies]
-soroban-sdk = { version = "22.0.11", features = ["testutils"] }
+soroban-sdk = { version = "29.0.1", features = ["testutils"] }
 demand-circle-registry = { path = "../demand_circle_registry" }
