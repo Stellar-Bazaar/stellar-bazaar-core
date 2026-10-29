@@ -56,6 +56,35 @@ jobs:
           cargo install cargo-audit --locked || true
           cargo audit --ignore RUSTSEC-2020-0071 || true
 
+  sdk-tests:
+    name: SDK Validation & Typecheck (Node ${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20.x, 22.x]
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+          cache-dependency-path: 'packages/sdk/package.json'
+
+      - name: Install SDK Dependencies
+        working-directory: packages/sdk
+        run: npm ci || npm install
+
+      - name: Run SDK Typecheck
+        working-directory: packages/sdk
+        run: npx tsc --noEmit
+
+      - name: Run SDK Unit Tests
+        working-directory: packages/sdk
+        run: npx vitest run
+
   markdown-lint-and-links:
     name: Markdown Documentation Verification
     runs-on: ubuntu-latest
