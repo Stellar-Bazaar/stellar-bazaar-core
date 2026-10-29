@@ -1,4 +1,4 @@
-.PHONY: all build test lint fmt audit clean doc deploy-testnet simulate-dispute indexer-test indexer-run help
+.PHONY: all build test lint fmt audit clean doc deploy-testnet simulate-dispute simulate-e2e indexer-test indexer-run help
 
 # Default target
 all: test
@@ -16,6 +16,7 @@ help:
 	@echo "  make clean           - Remove build artifacts and caches"
 	@echo "  make deploy-testnet  - Deploy contracts to Stellar Testnet"
 	@echo "  make simulate-dispute - Execute dispute resolution lifecycle simulation"
+	@echo "  make simulate-e2e    - Execute full end-to-end cooperative lifecycle simulation"
 	@echo "  make indexer-test    - Run Soroban event indexer test suite"
 	@echo "  make indexer-run     - Run indexer daemon dry run validation"
 
@@ -51,6 +52,9 @@ deploy-testnet:
 
 simulate-dispute:
 	powershell -ExecutionPolicy Bypass -File ./scripts/simulate_dispute_flow.ps1
+
+simulate-e2e:
+	powershell -ExecutionPolicy Bypass -File ./scripts/simulate_e2e_cooperative_lifecycle.ps1
 
 indexer-test:
 	cargo test -p bazaar-indexer -- --nocapture
