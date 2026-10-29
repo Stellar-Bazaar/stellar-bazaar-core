@@ -1,4 +1,4 @@
-.PHONY: all build test lint fmt audit clean doc deploy-testnet simulate-dispute simulate-e2e indexer-test indexer-run sdk-test help
+.PHONY: all build test lint fmt audit clean doc deploy-testnet simulate-dispute simulate-e2e indexer-test indexer-run sdk-test docker-build docker-compose-up help
 
 # Default target
 all: test
@@ -20,6 +20,8 @@ help:
 	@echo "  make indexer-test    - Run Soroban event indexer test suite"
 	@echo "  make indexer-run     - Run indexer daemon dry run validation"
 	@echo "  make sdk-test        - Run @stellar-bazaar/sdk unit tests and type checks"
+	@echo "  make docker-build    - Build indexer Docker image"
+	@echo "  make docker-compose-up - Launch indexer container via docker-compose"
 
 build:
 	cargo build --workspace --all-targets
@@ -65,3 +67,9 @@ indexer-run:
 
 sdk-test:
 	powershell -ExecutionPolicy Bypass -File ./scripts/test_sdk.ps1
+
+docker-build:
+	docker build -t stellar-bazaar-indexer:latest .
+
+docker-compose-up:
+	docker compose up -d
