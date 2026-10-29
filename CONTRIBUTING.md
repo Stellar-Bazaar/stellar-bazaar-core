@@ -55,9 +55,16 @@ To build, test, and develop within this repository, install the following:
 - **Checks-Effects-Interactions**: Always update internal contract storage prior to invoking external token contract transfers.
 - **Storage Strategy**: Group related deal and circle state cleanly using typed keys (`DataKey`).
 
-### Indexer & Tooling (`crates/bazaar_indexer/`)
-- Ensure ledger ingestion is replay-safe and idempotent.
+### TypeScript SDK Development (`packages/sdk/`)
+- Ensure all token amount utilities use lossless BigInt stroops.
+- Run SDK tests via `npm test` or `make sdk-test`.
+- Run strict TypeScript compile verification via `npx tsc --noEmit`.
+
+### Indexer & REST API Tooling (`crates/bazaar_indexer/`)
+- Ensure ledger ingestion is replay-safe and idempotent with SQLite/Postgres checkpointing.
 - Checkpoints should be committed atomically alongside database transactions.
+- Run indexer API tests via `make indexer-test`.
+- Execute full cooperative lifecycle simulation via `make simulate-e2e`.
 
 ---
 
