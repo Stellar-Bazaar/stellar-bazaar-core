@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  indexer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: stellar-bazaar-indexer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - STELLAR_RPC_URL=https://soroban-testnet.stellar.org
+      - DEAL_ENGINE_CONTRACT_ID=CBLJ2Y7PVR64F7V4GZJ5332YVDFO44V4V5P2O7C6X7NXXS4E77LNZD2E
+      - REGISTRY_CONTRACT_ID=CCK63X7JRP6V4O3BJVCFM76M5B4H7L6D2G5B4H7L6D2G5B4H7L6D2G5B
+      - SQLITE_PATH=/app/data/bazaar_indexer.db
+      - PORT=8080
+      - RUST_LOG=info
+    volumes:
+      - indexer-data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  indexer-data:
+    driver: local
