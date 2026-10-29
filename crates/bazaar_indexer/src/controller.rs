@@ -11,9 +11,8 @@ impl ApiController {
     /// GET /health - Returns health check status and telemetry
     pub fn handle_health(state: &IndexerDaemonState, consecutive_errors: u32) -> HttpResponse {
         let health = HealthChecker::evaluate(state, consecutive_errors);
-        HttpResponse::json(HttpStatus::Ok, &health).unwrap_or_else(|e| {
-            HttpResponse::text(HttpStatus::InternalServerError, &e.to_string())
-        })
+        HttpResponse::json(HttpStatus::Ok, &health)
+            .unwrap_or_else(|e| HttpResponse::text(HttpStatus::InternalServerError, &e.to_string()))
     }
 
     /// GET /metrics - Returns Prometheus text format metrics
@@ -46,9 +45,11 @@ impl ApiController {
     /// GET /api/v1/circles/:id/commitments - Returns all buyer commitments for a circle
     pub fn handle_get_commitments(repo: &dyn BazaarRepository, id: &str) -> HttpResponse {
         match repo.get_commitments_for_circle(id) {
-            Ok(commitments) => HttpResponse::json(HttpStatus::Ok, &commitments).unwrap_or_else(|e| {
-                HttpResponse::text(HttpStatus::InternalServerError, &e.to_string())
-            }),
+            Ok(commitments) => {
+                HttpResponse::json(HttpStatus::Ok, &commitments).unwrap_or_else(|e| {
+                    HttpResponse::text(HttpStatus::InternalServerError, &e.to_string())
+                })
+            }
             Err(e) => HttpResponse::text(HttpStatus::InternalServerError, &e.to_string()),
         }
     }
@@ -89,7 +90,9 @@ impl ApiController {
             Ok(Some(rep)) => HttpResponse::json(HttpStatus::Ok, &rep).unwrap_or_else(|e| {
                 HttpResponse::text(HttpStatus::InternalServerError, &e.to_string())
             }),
-            Ok(None) => HttpResponse::not_found(&format!("Seller reputation for '{}' not found", seller)),
+            Ok(None) => {
+                HttpResponse::not_found(&format!("Seller reputation for '{}' not found", seller))
+            }
             Err(e) => HttpResponse::text(HttpStatus::InternalServerError, &e.to_string()),
         }
     }
@@ -101,9 +104,10 @@ impl ApiController {
             last_ledger: u64,
         }
         match repo.get_last_ledger() {
-            Ok(last_ledger) => HttpResponse::json(HttpStatus::Ok, &CheckpointResp { last_ledger }).unwrap_or_else(|e| {
-                HttpResponse::text(HttpStatus::InternalServerError, &e.to_string())
-            }),
+            Ok(last_ledger) => HttpResponse::json(HttpStatus::Ok, &CheckpointResp { last_ledger })
+                .unwrap_or_else(|e| {
+                    HttpResponse::text(HttpStatus::InternalServerError, &e.to_string())
+                }),
             Err(e) => HttpResponse::text(HttpStatus::InternalServerError, &e.to_string()),
         }
     }

@@ -140,8 +140,14 @@ impl HttpResponse {
             headers: vec![
                 ("Connection".to_string(), "close".to_string()),
                 ("Access-Control-Allow-Origin".to_string(), "*".to_string()),
-                ("Access-Control-Allow-Methods".to_string(), "GET, POST, OPTIONS, HEAD".to_string()),
-                ("Access-Control-Allow-Headers".to_string(), "Content-Type, Authorization, X-Requested-With".to_string()),
+                (
+                    "Access-Control-Allow-Methods".to_string(),
+                    "GET, POST, OPTIONS, HEAD".to_string(),
+                ),
+                (
+                    "Access-Control-Allow-Headers".to_string(),
+                    "Content-Type, Authorization, X-Requested-With".to_string(),
+                ),
                 ("Access-Control-Max-Age".to_string(), "86400".to_string()),
             ],
             body,
@@ -163,8 +169,12 @@ impl HttpResponse {
             error: &'a str,
             code: u16,
         }
-        let data = ErrorResp { error: msg, code: 404 };
-        Self::json(HttpStatus::NotFound, &data).unwrap_or_else(|_| Self::text(HttpStatus::NotFound, msg))
+        let data = ErrorResp {
+            error: msg,
+            code: 404,
+        };
+        Self::json(HttpStatus::NotFound, &data)
+            .unwrap_or_else(|_| Self::text(HttpStatus::NotFound, msg))
     }
 
     pub fn bad_request(msg: &str) -> Self {
@@ -173,8 +183,12 @@ impl HttpResponse {
             error: &'a str,
             code: u16,
         }
-        let data = ErrorResp { error: msg, code: 400 };
-        Self::json(HttpStatus::BadRequest, &data).unwrap_or_else(|_| Self::text(HttpStatus::BadRequest, msg))
+        let data = ErrorResp {
+            error: msg,
+            code: 400,
+        };
+        Self::json(HttpStatus::BadRequest, &data)
+            .unwrap_or_else(|_| Self::text(HttpStatus::BadRequest, msg))
     }
 
     /// Serializes the response into raw HTTP/1.1 wire bytes
@@ -209,8 +223,14 @@ mod tests {
         assert_eq!(req.method, HttpMethod::Get);
         assert_eq!(req.path, "/api/v1/circles");
         assert_eq!(req.query.as_deref(), Some("limit=10"));
-        assert!(req.headers.iter().any(|(k, v)| k == "host" && v == "localhost:8088"));
-        assert!(req.headers.iter().any(|(k, v)| k == "accept" && v == "application/json"));
+        assert!(req
+            .headers
+            .iter()
+            .any(|(k, v)| k == "host" && v == "localhost:8088"));
+        assert!(req
+            .headers
+            .iter()
+            .any(|(k, v)| k == "accept" && v == "application/json"));
     }
 
     #[test]

@@ -74,3 +74,4 @@ export function calculateRebate(
   const delta = targetPriceStroops - acceptedPriceStroops;
   return delta * BigInt(units);
 }
+

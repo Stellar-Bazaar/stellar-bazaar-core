@@ -34,3 +34,4 @@ $$\forall b \in \text{Buyers}(c), \quad \text{Rebate}(b) \ge 0$$
 $$\forall b \in \text{Buyers}(c), \quad \text{ClaimCount}(b) \le 1$$
 - **Guarantee**: Double claims of refunds or rebates are rejected by the Soroban host.
 - **Enforcement**: Explicit boolean guard `if commitment.rebate_claimed { return Err(Error::RebateAlreadyClaimed); }`.
+

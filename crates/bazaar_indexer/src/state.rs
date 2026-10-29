@@ -39,7 +39,13 @@ impl IndexerDaemonState {
     }
 
     /// Updates metrics upon successful ledger batch ingestion
-    pub fn record_batch_success(&mut self, ledger: u64, new_events: u64, new_circles: u64, new_disputes: u64) {
+    pub fn record_batch_success(
+        &mut self,
+        ledger: u64,
+        new_events: u64,
+        new_circles: u64,
+        new_disputes: u64,
+    ) {
         if ledger > self.latest_ledger {
             self.latest_ledger = ledger;
         }

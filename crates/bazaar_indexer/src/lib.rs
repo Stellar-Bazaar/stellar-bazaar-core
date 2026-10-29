@@ -1,20 +1,20 @@
-pub mod schema;
-pub mod domain;
-pub mod event_filter;
-pub mod sqlite_repository;
-pub mod event_decoder;
-pub mod config;
-pub mod state;
-pub mod rpc_client;
-pub mod event_processor;
 pub mod checkpoint;
-pub mod worker;
-pub mod health;
-pub mod metrics;
-pub mod http;
-pub mod router;
+pub mod config;
 pub mod controller;
+pub mod domain;
+pub mod event_decoder;
+pub mod event_filter;
+pub mod event_processor;
+pub mod health;
+pub mod http;
+pub mod metrics;
+pub mod router;
+pub mod rpc_client;
+pub mod schema;
 pub mod server;
+pub mod sqlite_repository;
+pub mod state;
+pub mod worker;
 
 use domain::*;
 use thiserror::Error;
@@ -37,12 +37,22 @@ pub trait BazaarRepository: Send + Sync {
     fn record_commitment(&mut self, commitment: CommitmentRecord) -> Result<(), IndexerError>;
     fn record_offer(&mut self, offer: SellerOfferRecord) -> Result<(), IndexerError>;
     fn record_settlement(&mut self, settlement: SettlementRecord) -> Result<(), IndexerError>;
-    fn record_reputation(&mut self, reputation: SellerReputationRecord) -> Result<(), IndexerError>;
+    fn record_reputation(&mut self, reputation: SellerReputationRecord)
+        -> Result<(), IndexerError>;
 
     fn get_circle(&self, id: &str) -> Result<Option<DemandCircleRecord>, IndexerError>;
-    fn get_offers_for_circle(&self, circle_id: &str) -> Result<Vec<SellerOfferRecord>, IndexerError>;
-    fn get_commitments_for_circle(&self, circle_id: &str) -> Result<Vec<CommitmentRecord>, IndexerError>;
-    fn get_seller_reputation(&self, seller: &str) -> Result<Option<SellerReputationRecord>, IndexerError>;
+    fn get_offers_for_circle(
+        &self,
+        circle_id: &str,
+    ) -> Result<Vec<SellerOfferRecord>, IndexerError>;
+    fn get_commitments_for_circle(
+        &self,
+        circle_id: &str,
+    ) -> Result<Vec<CommitmentRecord>, IndexerError>;
+    fn get_seller_reputation(
+        &self,
+        seller: &str,
+    ) -> Result<Option<SellerReputationRecord>, IndexerError>;
 
     fn get_last_ledger(&self) -> Result<u64, IndexerError>;
     fn update_last_ledger(&mut self, ledger: u64) -> Result<(), IndexerError>;
@@ -50,13 +60,19 @@ pub trait BazaarRepository: Send + Sync {
     fn record_dispute(&mut self, _dispute: DisputeRecord) -> Result<(), IndexerError> {
         Ok(())
     }
-    fn get_disputes_for_circle(&self, _circle_id: &str) -> Result<Vec<DisputeRecord>, IndexerError> {
+    fn get_disputes_for_circle(
+        &self,
+        _circle_id: &str,
+    ) -> Result<Vec<DisputeRecord>, IndexerError> {
         Ok(Vec::new())
     }
     fn record_protocol_fee(&mut self, _fee: ProtocolFeeRecord) -> Result<(), IndexerError> {
         Ok(())
     }
-    fn get_protocol_fees_for_circle(&self, _circle_id: &str) -> Result<Vec<ProtocolFeeRecord>, IndexerError> {
+    fn get_protocol_fees_for_circle(
+        &self,
+        _circle_id: &str,
+    ) -> Result<Vec<ProtocolFeeRecord>, IndexerError> {
         Ok(Vec::new())
     }
 
@@ -111,8 +127,12 @@ impl BazaarRepository for InMemoryBazaarRepository {
         Ok(())
     }
 
-    fn record_reputation(&mut self, reputation: SellerReputationRecord) -> Result<(), IndexerError> {
-        self.reputations.retain(|r| r.seller_address != reputation.seller_address);
+    fn record_reputation(
+        &mut self,
+        reputation: SellerReputationRecord,
+    ) -> Result<(), IndexerError> {
+        self.reputations
+            .retain(|r| r.seller_address != reputation.seller_address);
         self.reputations.push(reputation);
         Ok(())
     }
@@ -121,16 +141,39 @@ impl BazaarRepository for InMemoryBazaarRepository {
         Ok(self.circles.iter().find(|c| c.id == id).cloned())
     }
 
-    fn get_offers_for_circle(&self, circle_id: &str) -> Result<Vec<SellerOfferRecord>, IndexerError> {
-        Ok(self.offers.iter().filter(|o| o.circle_id == circle_id).cloned().collect())
+    fn get_offers_for_circle(
+        &self,
+        circle_id: &str,
+    ) -> Result<Vec<SellerOfferRecord>, IndexerError> {
+        Ok(self
+            .offers
+            .iter()
+            .filter(|o| o.circle_id == circle_id)
+            .cloned()
+            .collect())
     }
 
-    fn get_commitments_for_circle(&self, circle_id: &str) -> Result<Vec<CommitmentRecord>, IndexerError> {
-        Ok(self.commitments.iter().filter(|c| c.circle_id == circle_id).cloned().collect())
+    fn get_commitments_for_circle(
+        &self,
+        circle_id: &str,
+    ) -> Result<Vec<CommitmentRecord>, IndexerError> {
+        Ok(self
+            .commitments
+            .iter()
+            .filter(|c| c.circle_id == circle_id)
+            .cloned()
+            .collect())
     }
 
-    fn get_seller_reputation(&self, seller: &str) -> Result<Option<SellerReputationRecord>, IndexerError> {
-        Ok(self.reputations.iter().find(|r| r.seller_address == seller).cloned())
+    fn get_seller_reputation(
+        &self,
+        seller: &str,
+    ) -> Result<Option<SellerReputationRecord>, IndexerError> {
+        Ok(self
+            .reputations
+            .iter()
+            .find(|r| r.seller_address == seller)
+            .cloned())
     }
 
     fn get_last_ledger(&self) -> Result<u64, IndexerError> {
@@ -149,7 +192,12 @@ impl BazaarRepository for InMemoryBazaarRepository {
     }
 
     fn get_disputes_for_circle(&self, circle_id: &str) -> Result<Vec<DisputeRecord>, IndexerError> {
-        Ok(self.disputes.iter().filter(|d| d.circle_id == circle_id).cloned().collect())
+        Ok(self
+            .disputes
+            .iter()
+            .filter(|d| d.circle_id == circle_id)
+            .cloned()
+            .collect())
     }
 
     fn record_protocol_fee(&mut self, fee: ProtocolFeeRecord) -> Result<(), IndexerError> {
@@ -158,12 +206,27 @@ impl BazaarRepository for InMemoryBazaarRepository {
         Ok(())
     }
 
-    fn get_protocol_fees_for_circle(&self, circle_id: &str) -> Result<Vec<ProtocolFeeRecord>, IndexerError> {
-        Ok(self.protocol_fees.iter().filter(|f| f.circle_id == circle_id).cloned().collect())
+    fn get_protocol_fees_for_circle(
+        &self,
+        circle_id: &str,
+    ) -> Result<Vec<ProtocolFeeRecord>, IndexerError> {
+        Ok(self
+            .protocol_fees
+            .iter()
+            .filter(|f| f.circle_id == circle_id)
+            .cloned()
+            .collect())
     }
 
     fn list_active_circles(&self) -> Result<Vec<DemandCircleRecord>, IndexerError> {
-        Ok(self.circles.iter().filter(|c| c.status == "OPEN" || c.status == "QUORUM_REACHED" || c.status == "INSPECTION").cloned().collect())
+        Ok(self
+            .circles
+            .iter()
+            .filter(|c| {
+                c.status == "OPEN" || c.status == "QUORUM_REACHED" || c.status == "INSPECTION"
+            })
+            .cloned()
+            .collect())
     }
 
     fn list_top_sellers(&self, limit: usize) -> Result<Vec<SellerReputationRecord>, IndexerError> {

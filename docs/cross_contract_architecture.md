@@ -69,3 +69,4 @@ pub fn create_deal_from_registry(
 1. **Isolated Risk**: If metadata schemas evolve in the registry, financial escrow contracts remain unchanged and secure.
 2. **Deterministic Data Propagation**: Deal terms (ceiling price, deadline) are fetched directly from immutable on-chain storage, preventing creator parameter spoofing.
 3. **Composability**: External dApps can build custom registry interfaces while relying on the audited `bazaar_deal_engine` for settlement.
+

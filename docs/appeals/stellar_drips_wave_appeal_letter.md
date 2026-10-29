@@ -76,9 +76,9 @@ Below is an overview of the substantive enhancements implemented across five maj
 | **Live Web3 Application** | [https://stellar-bazaar-dapp.netlify.app](https://stellar-bazaar-dapp.netlify.app) |
 | **Bazaar Deal Engine Contract** | [`CBLJ2Y7PVR64F7V4GZJ5332YVDFO44V4V5P2O7C6X7NXXS4E77LNZD2E`](https://stellar.expert/explorer/testnet/contract/CBLJ2Y7PVR64F7V4GZJ5332YVDFO44V4V5P2O7C6X7NXXS4E77LNZD2E) |
 | **Demand Circle Registry Contract** | [`CCK63X7JRP6V4O3BJVCFM76M5B4H7L6D2G5B4H7L6D2G5B4H7L6D2G5B`](https://stellar.expert/explorer/testnet/contract/CCK63X7JRP6V4O3BJVCFM76M5B4H7L6D2G5B4H7L6D2G5B4H7L6D2G5B) |
-| **Hackathon Judging Guide** | [`docs/hackathon_judging_guide.md`](file:///C:/Users/USER/.gemini/antigravity/scratch/stellar-bazaar/stellar-bazaar-core/docs/hackathon_judging_guide.md) |
-| **Reviewer Demo Runbook** | [`docs/demo_runbook.md`](file:///C:/Users/USER/.gemini/antigravity/scratch/stellar-bazaar/stellar-bazaar-core/docs/demo_runbook.md) |
-| **Security Audit Report** | [`docs/security_audit_report.md`](file:///C:/Users/USER/.gemini/antigravity/scratch/stellar-bazaar/stellar-bazaar-core/docs/security_audit_report.md) |
+| **Hackathon Judging Guide** | [`docs/hackathon_judging_guide.md`](../hackathon_judging_guide.md) |
+| **Reviewer Demo Runbook** | [`docs/demo_runbook.md`](../demo_runbook.md) |
+| **Security Audit Report** | [`docs/security_audit_report.md`](../security_audit_report.md) |
 | **E2E Simulation Script** | `powershell -ExecutionPolicy Bypass -File scripts/simulate_e2e_cooperative_lifecycle.ps1` |
 
 ---
@@ -95,3 +95,4 @@ Sincerely,
 **KingTaiwoDev**  
 Lead Maintainer, Stellar Bazaar  
 GitHub: [@KingTaiwoDev](https://github.com/KingTaiwoDev)
+

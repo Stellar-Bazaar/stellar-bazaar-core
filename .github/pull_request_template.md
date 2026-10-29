@@ -30,3 +30,4 @@ Before submitting this PR, please confirm that the following safety criteria are
 - [ ] **WASM Size Budget**: Compiled contracts stay comfortably below the 256KB threshold.
 - [ ] **Unit & E2E Tests**: All existing tests pass (`cargo test --workspace`) and new tests have been added.
 - [ ] **SDK & Indexer Sync**: Any contract interface changes have been reflected in `@stellar-bazaar/sdk` and `bazaar-indexer`.
+

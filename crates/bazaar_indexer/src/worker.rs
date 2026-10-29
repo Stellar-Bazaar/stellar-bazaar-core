@@ -32,7 +32,8 @@ impl IndexerWorker {
     /// Handles successful polling iteration
     pub fn on_poll_success(&mut self, latest_ledger: u64, events_count: u64) {
         self.consecutive_errors = 0;
-        self.state.record_batch_success(latest_ledger, events_count, 0, 0);
+        self.state
+            .record_batch_success(latest_ledger, events_count, 0, 0);
     }
 
     /// Handles failure and increments backoff counter

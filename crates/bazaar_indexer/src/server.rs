@@ -39,7 +39,9 @@ impl ApiServer {
             ApiRoute::GetCircleCommitments { id } => {
                 ApiController::handle_get_commitments(&**repo_guard, &id)
             }
-            ApiRoute::GetCircleOffers { id } => ApiController::handle_get_offers(&**repo_guard, &id),
+            ApiRoute::GetCircleOffers { id } => {
+                ApiController::handle_get_offers(&**repo_guard, &id)
+            }
             ApiRoute::GetCircleDisputes { id } => {
                 ApiController::handle_get_disputes(&**repo_guard, &id)
             }
@@ -49,9 +51,19 @@ impl ApiServer {
             }
             ApiRoute::GetCheckpoint => ApiController::handle_get_checkpoint(&**repo_guard),
             ApiRoute::OptionsPreflight => {
-                let mut resp = HttpResponse::new(HttpStatus::NoContent, crate::http::ContentType::TextPlain, Vec::new());
-                resp.headers.push(("Access-Control-Allow-Methods".to_string(), "GET, HEAD, OPTIONS".to_string()));
-                resp.headers.push(("Access-Control-Allow-Headers".to_string(), "Content-Type, Authorization".to_string()));
+                let mut resp = HttpResponse::new(
+                    HttpStatus::NoContent,
+                    crate::http::ContentType::TextPlain,
+                    Vec::new(),
+                );
+                resp.headers.push((
+                    "Access-Control-Allow-Methods".to_string(),
+                    "GET, HEAD, OPTIONS".to_string(),
+                ));
+                resp.headers.push((
+                    "Access-Control-Allow-Headers".to_string(),
+                    "Content-Type, Authorization".to_string(),
+                ));
                 resp
             }
             ApiRoute::NotFound => HttpResponse::not_found("Resource endpoint not found"),
@@ -102,8 +114,8 @@ mod tests {
     use super::*;
     use crate::config::IndexerConfig;
     use crate::domain::*;
-    use crate::sqlite_repository::SqliteBazaarRepository;
     use crate::http::HttpMethod;
+    use crate::sqlite_repository::SqliteBazaarRepository;
 
     fn build_test_server() -> ApiServer {
         let mut repo = SqliteBazaarRepository::new_in_memory().expect("Failed in-mem sqlite");
@@ -118,7 +130,8 @@ mod tests {
             status: "OPEN".to_string(),
             creator_address: "GCREATOR".to_string(),
             deadline_timestamp: 1720000000,
-        }).unwrap();
+        })
+        .unwrap();
 
         repo.record_commitment(CommitmentRecord {
             id: "COMMIT_1".to_string(),
@@ -128,7 +141,8 @@ mod tests {
             committed_amount_xlm: "25000.0".to_string(),
             escrow_tx_hash: Some("HASH123".to_string()),
             status: "COMMITTED".to_string(),
-        }).unwrap();
+        })
+        .unwrap();
 
         repo.record_offer(SellerOfferRecord {
             id: "OFFER_1".to_string(),
@@ -138,7 +152,8 @@ mod tests {
             available_volume: 5000,
             lead_time_days: 7,
             status: "PROPOSED".to_string(),
-        }).unwrap();
+        })
+        .unwrap();
 
         repo.record_reputation(SellerReputationRecord {
             seller_address: "GSELLER1".to_string(),
@@ -147,7 +162,8 @@ mod tests {
             total_amount_settled_xlm: "750000.0".to_string(),
             disputed_or_refunded_deals: 0,
             score_percentage: 100,
-        }).unwrap();
+        })
+        .unwrap();
 
         repo.record_dispute(DisputeRecord {
             id: "DISPUTE_1".to_string(),
@@ -158,7 +174,8 @@ mod tests {
             resolution_refund_to_buyers: None,
             opened_at_timestamp: 1720000100,
             resolved_at_timestamp: None,
-        }).unwrap();
+        })
+        .unwrap();
 
         repo.update_last_ledger(105).unwrap();
 
@@ -312,7 +329,10 @@ mod tests {
         };
         let resp = server.dispatch(&req);
         assert_eq!(resp.status, HttpStatus::NoContent);
-        assert!(resp.headers.iter().any(|(k, v)| k == "Access-Control-Allow-Methods" && v.contains("GET")));
+        assert!(resp
+            .headers
+            .iter()
+            .any(|(k, v)| k == "Access-Control-Allow-Methods" && v.contains("GET")));
 
         // 12. Not found
         let req = HttpRequest {

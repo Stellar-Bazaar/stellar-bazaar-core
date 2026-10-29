@@ -52,3 +52,4 @@ describe('StellarBazaarClient', () => {
     expect(disputeTx.args[2]).toBe('Damaged');
   });
 });
+

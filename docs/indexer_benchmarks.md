@@ -37,3 +37,4 @@ Measured across 10,000 requests using an HTTP benchmark client:
 - Baseline SQLite database size: **128 KB**.
 - Storage growth: **~480 bytes per complete deal lifecycle** (including circle metadata, 10 buyer commitments, 3 seller offers, dispute record, and settlement checkpoint).
 - Suitable for embedding on lightweight micro-instances or edge containers.
+

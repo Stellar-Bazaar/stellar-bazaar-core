@@ -114,7 +114,9 @@ mod tests {
         let json_str = serde_json::to_string(&req).unwrap();
         assert!(json_str.contains("\"method\":\"getEvents\""));
         assert!(json_str.contains("\"startLedger\":150000"));
-        assert!(json_str.contains("\"contractIds\":[\"CDCK6A2QB5QTILDWILUQGAUWXI543TK63WN2OKG7WEWHBAMGZ6ESKY4G\"]"));
+        assert!(json_str.contains(
+            "\"contractIds\":[\"CDCK6A2QB5QTILDWILUQGAUWXI543TK63WN2OKG7WEWHBAMGZ6ESKY4G\"]"
+        ));
         assert!(json_str.contains("\"limit\":50"));
     }
 

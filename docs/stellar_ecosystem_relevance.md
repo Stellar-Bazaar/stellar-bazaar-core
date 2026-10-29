@@ -65,3 +65,4 @@ Every mutating invocation enforces caller signatures via `caller.require_auth()`
 | **Maintainer Activity & Commitment** | Rapid, atomic, high-quality development history authored by `KingTaiwoDev`, with comprehensive PR/Issue governance and continuous integration. |
 | **Relevance to Stellar Ecosystem** | Direct utility driver for Soroban smart contracts, Stellar Asset Contracts, and on-chain payment liquidity. |
 | **Open Source Governance** | MIT licensed, contributor guidelines, Contributor Covenant v2.1 code of conduct, responsible disclosure security policies, and Dependabot automation. |
+

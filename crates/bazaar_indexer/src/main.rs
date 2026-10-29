@@ -131,7 +131,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     if print_health {
         let health = HealthChecker::evaluate(&worker.state, worker.consecutive_errors);
-        println!("\n[Health Check]:\n{}", serde_json::to_string_pretty(&health)?);
+        println!(
+            "\n[Health Check]:\n{}",
+            serde_json::to_string_pretty(&health)?
+        );
         return Ok(());
     }
 

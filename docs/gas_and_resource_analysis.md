@@ -36,3 +36,4 @@ const INSTANCE_TTL_EXTEND_TO: u32 = 518_400; // ~30 days
 1. **Conditional Extension**: TTL extension only executes if the remaining TTL drops below `INSTANCE_TTL_THRESHOLD`, avoiding redundant rent expenditure on frequent transactions.
 2. **Compact Storage Layout**: Data structures use integer enums (`u32`) and short symbols rather than unbounded strings, maintaining storage entry sizes below 256 bytes per commitment.
 3. **Dust Reclamation**: Settled circles clear transient state, freeing ledger space.
+

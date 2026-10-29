@@ -58,3 +58,4 @@ In accordance with Soroban State Archival standards:
 - **`INSTANCE_TTL_THRESHOLD`**: `17,280` ledgers (~24 hours).
 - **`INSTANCE_TTL_EXTEND_TO`**: `518,400` ledgers (~30 days).
 - Every state-modifying invocation (`commit_demand`, `accept_seller_offer`, `settle_deal`, `claim_surplus_rebate`) proactively extends the contract's instance storage TTL, ensuring cooperative circles never suffer state eviction mid-deal.
+

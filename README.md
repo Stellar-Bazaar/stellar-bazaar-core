@@ -138,7 +138,19 @@ Genuine screenshots captured from development tools and running application:
 | **08** | Failed Deal & Refund Protection Flow | [`08_failed_deal_and_refund_outcome.png`](docs/screenshots/08_failed_deal_and_refund_outcome.png) |
 | **09** | Deployed Contract IDs & Verified Hashes | [`09_deployed_contract_and_tx_hash.png`](docs/screenshots/09_deployed_contract_and_tx_hash.png) |
 | **10** | Running CI/CD Automation Workflow | [`10_running_ci_workflow.png`](docs/screenshots/10_running_ci_workflow.png) |
-| **11** | Automated Test Output (10 Rust + 33 Frontend tests) | [`11_automated_test_output.png`](docs/screenshots/11_automated_test_output.png) |
+| **11** | Automated Test Output (319 System Tests Verified) | [`11_automated_test_output.png`](docs/screenshots/11_automated_test_output.png) |
+
+---
+
+## Reviewer & Judge Resources
+
+- [Hackathon & Grant Judging Guide](docs/hackathon_judging_guide.md)
+- [Interactive Reviewer Demo Runbook](docs/demo_runbook.md)
+- [Stellar Ecosystem Relevance Brief](docs/stellar_ecosystem_relevance.md)
+- [Comprehensive Security Audit Report](docs/security_audit_report.md)
+- [Mathematical Invariants & Solvency Proofs](docs/smart_contract_formal_verification.md)
+- [Stellar Drips Wave Appeal Letter](docs/appeals/stellar_drips_wave_appeal_letter.md)
+- [Developer FAQ & Troubleshooting](docs/faq_and_troubleshooting.md)
 
 ---
 

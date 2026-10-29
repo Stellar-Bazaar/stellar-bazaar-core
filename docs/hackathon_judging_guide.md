@@ -82,3 +82,4 @@ npm run dev
 - **Static Analysis**: Zero Clippy linter warnings (`cargo clippy -D warnings`), zero TypeScript compiler errors (`tsc --noEmit`).
 - **WASM Size Optimization**: All smart contracts compile under 120KB (well within 256KB Soroban threshold).
 - **Formal Threat Model**: Comprehensive `SECURITY.md` analyzing 11 threat vectors with verifiable code mitigations.
+

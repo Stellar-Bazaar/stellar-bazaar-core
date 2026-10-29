@@ -35,3 +35,4 @@ Strategic milestones and technical roadmap following the completion of our 300-p
 ### Milestone 4: Native Mobile Apps & Community DAO Governance (Q3–Q4 2027)
 - Release native iOS and Android applications utilizing Passkey WebAuthn signers (zero seed-phrase friction).
 - Transition protocol fee parameters and arbitrator whitelists to decentralized token-weighted DAO voting.
+

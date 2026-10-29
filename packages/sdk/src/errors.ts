@@ -190,3 +190,4 @@ export class SorobanContractError extends StellarBazaarError {
 export function resolveContractError(code: number): SorobanContractError {
   return new SorobanContractError(code);
 }
+

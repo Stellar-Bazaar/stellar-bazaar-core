@@ -96,4 +96,3 @@ mod tests {
         assert!(SQLITE_INITIAL_SCHEMA.contains("resolution_refund_to_buyers INTEGER"));
     }
 }
-

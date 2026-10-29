@@ -83,3 +83,4 @@ describe('EventWatcher', () => {
     expect(watcher.active).toBe(false);
   });
 });
+

@@ -39,12 +39,13 @@ jobs:
           key: ${{ runner.os }}-cargo-sim-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Run E2E Cooperative Lifecycle Test Suite
-        run: cargo test -p bazaar-deal-engine --test '*' -- e2e_tests --nocapture
+        run: cargo test -p bazaar-deal-engine -- e2e_tests --nocapture
 
       - name: Run Dispute Lifecycle Test Suite
-        run: cargo test -p bazaar-deal-engine --test '*' -- dispute --nocapture
+        run: cargo test -p bazaar-deal-engine -- dispute --nocapture
 
       - name: Execute POSIX Simulation Runner Script
         run: |
           chmod +x scripts/simulate_e2e_cooperative_lifecycle.sh
           ./scripts/simulate_e2e_cooperative_lifecycle.sh
+

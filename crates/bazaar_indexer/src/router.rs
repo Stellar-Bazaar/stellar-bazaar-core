@@ -59,9 +59,11 @@ impl ApiRoute {
                         id: (*id).to_string(),
                     },
                     // /api/v1/sellers/{seller}/reputation
-                    ["api", "v1", "sellers", seller, "reputation"] => ApiRoute::GetSellerReputation {
-                        seller: (*seller).to_string(),
-                    },
+                    ["api", "v1", "sellers", seller, "reputation"] => {
+                        ApiRoute::GetSellerReputation {
+                            seller: (*seller).to_string(),
+                        }
+                    }
                     _ => ApiRoute::NotFound,
                 }
             }
@@ -89,19 +91,27 @@ mod tests {
         );
         assert_eq!(
             ApiRoute::match_request(&HttpMethod::Get, "/api/v1/circles/CIRCLE_42"),
-            ApiRoute::GetCircle { id: "CIRCLE_42".to_string() }
+            ApiRoute::GetCircle {
+                id: "CIRCLE_42".to_string()
+            }
         );
         assert_eq!(
             ApiRoute::match_request(&HttpMethod::Get, "/api/v1/circles/CIRCLE_42/commitments"),
-            ApiRoute::GetCircleCommitments { id: "CIRCLE_42".to_string() }
+            ApiRoute::GetCircleCommitments {
+                id: "CIRCLE_42".to_string()
+            }
         );
         assert_eq!(
             ApiRoute::match_request(&HttpMethod::Get, "/api/v1/circles/CIRCLE_42/offers"),
-            ApiRoute::GetCircleOffers { id: "CIRCLE_42".to_string() }
+            ApiRoute::GetCircleOffers {
+                id: "CIRCLE_42".to_string()
+            }
         );
         assert_eq!(
             ApiRoute::match_request(&HttpMethod::Get, "/api/v1/circles/CIRCLE_42/disputes"),
-            ApiRoute::GetCircleDisputes { id: "CIRCLE_42".to_string() }
+            ApiRoute::GetCircleDisputes {
+                id: "CIRCLE_42".to_string()
+            }
         );
         assert_eq!(
             ApiRoute::match_request(&HttpMethod::Get, "/api/v1/sellers/top"),
@@ -109,7 +119,9 @@ mod tests {
         );
         assert_eq!(
             ApiRoute::match_request(&HttpMethod::Get, "/api/v1/sellers/GBSELLER123/reputation"),
-            ApiRoute::GetSellerReputation { seller: "GBSELLER123".to_string() }
+            ApiRoute::GetSellerReputation {
+                seller: "GBSELLER123".to_string()
+            }
         );
         assert_eq!(
             ApiRoute::match_request(&HttpMethod::Get, "/api/v1/checkpoint"),

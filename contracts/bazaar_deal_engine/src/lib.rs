@@ -158,7 +158,9 @@ impl BazaarDealEngineContract {
         }
         env.storage().instance().set(&DataKey::Admin, &admin);
         env.storage().instance().set(&DataKey::Treasury, &admin);
-        env.storage().instance().set(&DataKey::ProtocolFeeBps, &100u32);
+        env.storage()
+            .instance()
+            .set(&DataKey::ProtocolFeeBps, &100u32);
         env.storage().instance().set(&DataKey::CircleCounter, &0u64);
         env.storage().instance().set(&DataKey::OfferCounter, &0u64);
         env.storage()
@@ -633,7 +635,8 @@ impl BazaarDealEngineContract {
             return Err(Error::DisputeAlreadyOpen);
         }
 
-        if circle.status != CircleStatus::Inspection && circle.status != CircleStatus::QuorumReached {
+        if circle.status != CircleStatus::Inspection && circle.status != CircleStatus::QuorumReached
+        {
             return Err(Error::NotUnderInspection);
         }
 

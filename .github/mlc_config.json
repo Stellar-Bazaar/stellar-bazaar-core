@@ -4,7 +4,19 @@
       "pattern": "^https://stellar-bazaar-dapp\\.netlify\\.app"
     },
     {
-      "pattern": "^https://stellar\\.expert/explorer/testnet"
+      "pattern": "^https://stellar\\.expert"
+    },
+    {
+      "pattern": "^https://www\\.drips\\.network"
+    },
+    {
+      "pattern": "^https://docs\\.drips\\.network"
+    },
+    {
+      "pattern": "^file://"
+    },
+    {
+      "pattern": "^http://localhost"
     }
   ],
   "timeout": "15s",

@@ -124,7 +124,8 @@ fn test_metadata_uri_upper_bound_rejection() {
     let long_uri_str = "https://example.com/metadata/oversized/deeply/nested/path/to/product/specifications/and/images/which/exceeds/the/maximum/allowed/length/of/two/hundred/and/fifty/six/bytes/in/order/to/prevent/unbounded/soroban/storage/bloat/and/ledger/footprint/amplification/test/long/string/padding/1234567890/abcdefghijklmnopqrstuv";
     let oversized_uri = String::from_str(&env, long_uri_str);
 
-    let result = client.try_create_circle(&creator, &title, &oversized_uri, &10, &10_000_000, &3600);
+    let result =
+        client.try_create_circle(&creator, &title, &oversized_uri, &10, &10_000_000, &3600);
     assert_eq!(result, Err(Ok(Error::InvalidMetadataUri)));
 }
 

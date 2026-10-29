@@ -48,3 +48,4 @@ This document formalizes the commercial dispute lifecycle, inspection window dea
 4. **Partition Math**:
    - `refund_buyer_bps` must be between $0$ and $10,000$ (0% to 100%).
    - Protocol fees are assessed only against the seller's received portion. If 100% is refunded to buyers, zero protocol fee is assessed.
+

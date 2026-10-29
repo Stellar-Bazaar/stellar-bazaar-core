@@ -47,3 +47,4 @@ Write-Host "`n============================================================" -For
 Write-Host " @stellar-bazaar/sdk Tests & Compilation Passed 100%!" -ForegroundColor Green
 Write-Host "============================================================" -ForegroundColor Green
 exit 0
+

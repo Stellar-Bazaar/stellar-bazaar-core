@@ -47,7 +47,6 @@ pub struct SettlementRecord {
     pub ledger_sequence: u64,
 }
 
-
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct SellerReputationRecord {
     pub seller_address: String,

@@ -65,3 +65,4 @@ echo -e "${GREEN} -> Contract Escrow Remaining Balance: 0 stroops (Clean Settlem
 echo -e "\n${GREEN}============================================================${NC}"
 echo -e "${GREEN}  Cooperative Deal Simulation Completed Successfully!      ${NC}"
 echo -e "${GREEN}============================================================${NC}"
+

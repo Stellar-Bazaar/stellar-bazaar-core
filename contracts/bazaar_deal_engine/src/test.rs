@@ -306,7 +306,6 @@ fn test_seller_offer_validation_and_cancellation_refund() {
     assert_eq!(token_client.balance(&buyer), 50_000_000);
 }
 
-
 #[test]
 fn test_deal_creation_zero_target_volume_fails() {
     let env = Env::default();
@@ -514,7 +513,8 @@ fn test_dispute_deal_initiation_and_authorization_guards() {
     client.initiate_inspection(&creator, &circle_id, &86400);
 
     // Stranger without commitment cannot file dispute
-    let unauth_dispute = client.try_dispute_deal(&stranger, &circle_id, &Symbol::new(&env, "DEFECT"));
+    let unauth_dispute =
+        client.try_dispute_deal(&stranger, &circle_id, &Symbol::new(&env, "DEFECT"));
     assert_eq!(unauth_dispute, Err(Ok(Error::DisputeUnauthorized)));
 
     // Committed buyer can file dispute

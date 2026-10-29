@@ -33,10 +33,7 @@ impl SorobanRpcEventFilter {
     /// Builds the standard Stellar Bazaar filter covering both Registry and DealEngine contracts
     pub fn for_bazaar(registry_id: &str, deal_engine_id: &str) -> Vec<Self> {
         vec![
-            Self::new(
-                registry_id,
-                vec![vec!["circle".to_string()]],
-            ),
+            Self::new(registry_id, vec![vec!["circle".to_string()]]),
             Self::new(
                 deal_engine_id,
                 vec![

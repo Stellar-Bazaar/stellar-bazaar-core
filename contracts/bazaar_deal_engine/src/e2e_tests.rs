@@ -102,9 +102,12 @@ fn test_e2e_happy_path_cooperative_deal_lifecycle() {
     assert_eq!(circle_id, 1);
 
     // 2. Three buyers commit 5 units each (Total 15 units, reaching quorum >= 10)
-    fix.deal_client.commit_demand(&fix.buyers[0], &circle_id, &5);
-    fix.deal_client.commit_demand(&fix.buyers[1], &circle_id, &5);
-    fix.deal_client.commit_demand(&fix.buyers[2], &circle_id, &5);
+    fix.deal_client
+        .commit_demand(&fix.buyers[0], &circle_id, &5);
+    fix.deal_client
+        .commit_demand(&fix.buyers[1], &circle_id, &5);
+    fix.deal_client
+        .commit_demand(&fix.buyers[2], &circle_id, &5);
 
     let circle = fix.deal_client.get_circle(&circle_id);
     assert_eq!(circle.current_volume, 15);
@@ -112,25 +115,24 @@ fn test_e2e_happy_path_cooperative_deal_lifecycle() {
     assert_eq!(fix.token_client.balance(&fix.contract_id), 150_000_000); // 15 * 10 XLM
 
     // 3. Merchant places wholesale offer at 8_000_000 stroops (20% savings, 30 units capacity, 7 day lead time)
-    let offer_id = fix.deal_client.submit_seller_offer(
-        &fix.seller,
-        &circle_id,
-        &8_000_000,
-        &30,
-        &7,
-    );
+    let offer_id =
+        fix.deal_client
+            .submit_seller_offer(&fix.seller, &circle_id, &8_000_000, &30, &7);
     assert_eq!(offer_id, 1);
 
     // 4. Circle creator accepts merchant offer
-    fix.deal_client.accept_seller_offer(&fix.creator, &circle_id, &offer_id);
+    fix.deal_client
+        .accept_seller_offer(&fix.creator, &circle_id, &offer_id);
 
     // 5. Creator initiates inspection period for 24 hours (86,400s)
-    fix.deal_client.initiate_inspection(&fix.creator, &circle_id, &86_400);
+    fix.deal_client
+        .initiate_inspection(&fix.creator, &circle_id, &86_400);
     let circle_inspecting = fix.deal_client.get_circle(&circle_id);
     assert_eq!(circle_inspecting.status, CircleStatus::Inspection);
 
     // 6. Creator confirms inspection and delivery; escrow settles
-    fix.deal_client.confirm_inspection_and_settle(&fix.creator, &circle_id);
+    fix.deal_client
+        .confirm_inspection_and_settle(&fix.creator, &circle_id);
 
     let settled_circle = fix.deal_client.get_circle(&circle_id);
     assert_eq!(settled_circle.status, CircleStatus::Settled);
@@ -168,17 +170,16 @@ fn test_e2e_surplus_rebate_distribution() {
         assert_eq!(fix.token_client.balance(b), 950_000_000);
     }
 
-    let offer_id = fix.deal_client.submit_seller_offer(
-        &fix.seller,
-        &circle_id,
-        &8_000_000,
-        &30,
-        &7,
-    );
+    let offer_id =
+        fix.deal_client
+            .submit_seller_offer(&fix.seller, &circle_id, &8_000_000, &30, &7);
 
-    fix.deal_client.accept_seller_offer(&fix.creator, &circle_id, &offer_id);
-    fix.deal_client.initiate_inspection(&fix.creator, &circle_id, &86_400);
-    fix.deal_client.confirm_inspection_and_settle(&fix.creator, &circle_id);
+    fix.deal_client
+        .accept_seller_offer(&fix.creator, &circle_id, &offer_id);
+    fix.deal_client
+        .initiate_inspection(&fix.creator, &circle_id, &86_400);
+    fix.deal_client
+        .confirm_inspection_and_settle(&fix.creator, &circle_id);
 
     // Surplus in contract: 30_000_000 stroops
     assert_eq!(fix.token_client.balance(&fix.contract_id), 30_000_000);
@@ -208,29 +209,32 @@ fn test_e2e_buyer_dispute_filing_during_inspection() {
         &86_400,
     );
 
-    fix.deal_client.commit_demand(&fix.buyers[0], &circle_id, &5);
-    fix.deal_client.commit_demand(&fix.buyers[1], &circle_id, &5);
+    fix.deal_client
+        .commit_demand(&fix.buyers[0], &circle_id, &5);
+    fix.deal_client
+        .commit_demand(&fix.buyers[1], &circle_id, &5);
 
-    let offer_id = fix.deal_client.submit_seller_offer(
-        &fix.seller,
-        &circle_id,
-        &9_000_000,
-        &20,
-        &5,
-    );
+    let offer_id =
+        fix.deal_client
+            .submit_seller_offer(&fix.seller, &circle_id, &9_000_000, &20, &5);
 
-    fix.deal_client.accept_seller_offer(&fix.creator, &circle_id, &offer_id);
-    fix.deal_client.initiate_inspection(&fix.creator, &circle_id, &86_400);
+    fix.deal_client
+        .accept_seller_offer(&fix.creator, &circle_id, &offer_id);
+    fix.deal_client
+        .initiate_inspection(&fix.creator, &circle_id, &86_400);
 
     // Buyer 0 notices items do not meet specifications and files dispute
     let reason = symbol_short!("damaged");
-    fix.deal_client.dispute_deal(&fix.buyers[0], &circle_id, &reason);
+    fix.deal_client
+        .dispute_deal(&fix.buyers[0], &circle_id, &reason);
 
     let circle = fix.deal_client.get_circle(&circle_id);
     assert_eq!(circle.status, CircleStatus::Disputed);
 
     // Settlement cannot proceed while under dispute
-    let err = fix.deal_client.try_confirm_inspection_and_settle(&fix.creator, &circle_id);
+    let err = fix
+        .deal_client
+        .try_confirm_inspection_and_settle(&fix.creator, &circle_id);
     assert_eq!(err, Err(Ok(Error::NotUnderInspection)));
 }
 
@@ -248,25 +252,27 @@ fn test_e2e_arbitrator_dispute_resolution() {
         &86_400,
     );
 
-    fix.deal_client.commit_demand(&fix.buyers[0], &circle_id, &5);
-    fix.deal_client.commit_demand(&fix.buyers[1], &circle_id, &5);
+    fix.deal_client
+        .commit_demand(&fix.buyers[0], &circle_id, &5);
+    fix.deal_client
+        .commit_demand(&fix.buyers[1], &circle_id, &5);
 
-    let offer_id = fix.deal_client.submit_seller_offer(
-        &fix.seller,
-        &circle_id,
-        &8_500_000,
-        &20,
-        &5,
-    );
+    let offer_id =
+        fix.deal_client
+            .submit_seller_offer(&fix.seller, &circle_id, &8_500_000, &20, &5);
 
-    fix.deal_client.accept_seller_offer(&fix.creator, &circle_id, &offer_id);
-    fix.deal_client.initiate_inspection(&fix.creator, &circle_id, &86_400);
+    fix.deal_client
+        .accept_seller_offer(&fix.creator, &circle_id, &offer_id);
+    fix.deal_client
+        .initiate_inspection(&fix.creator, &circle_id, &86_400);
 
     // Buyer files dispute
-    fix.deal_client.dispute_deal(&fix.buyers[0], &circle_id, &symbol_short!("damaged"));
+    fix.deal_client
+        .dispute_deal(&fix.buyers[0], &circle_id, &symbol_short!("damaged"));
 
     // Protocol admin arbitrates and resolves in favor of buyers (refund_to_buyers = true)
-    fix.deal_client.resolve_dispute(&fix.admin, &circle_id, &true);
+    fix.deal_client
+        .resolve_dispute(&fix.admin, &circle_id, &true);
 
     let circle = fix.deal_client.get_circle(&circle_id);
     assert_eq!(circle.status, CircleStatus::Cancelled);
@@ -295,25 +301,28 @@ fn test_e2e_unauthorized_dispute_resolution_rejection() {
         &86_400,
     );
 
-    fix.deal_client.commit_demand(&fix.buyers[0], &circle_id, &5);
-    fix.deal_client.commit_demand(&fix.buyers[1], &circle_id, &5);
+    fix.deal_client
+        .commit_demand(&fix.buyers[0], &circle_id, &5);
+    fix.deal_client
+        .commit_demand(&fix.buyers[1], &circle_id, &5);
 
-    let offer_id = fix.deal_client.submit_seller_offer(
-        &fix.seller,
-        &circle_id,
-        &8_500_000,
-        &20,
-        &5,
-    );
+    let offer_id =
+        fix.deal_client
+            .submit_seller_offer(&fix.seller, &circle_id, &8_500_000, &20, &5);
 
-    fix.deal_client.accept_seller_offer(&fix.creator, &circle_id, &offer_id);
-    fix.deal_client.initiate_inspection(&fix.creator, &circle_id, &86_400);
+    fix.deal_client
+        .accept_seller_offer(&fix.creator, &circle_id, &offer_id);
+    fix.deal_client
+        .initiate_inspection(&fix.creator, &circle_id, &86_400);
 
-    fix.deal_client.dispute_deal(&fix.buyers[0], &circle_id, &symbol_short!("damaged"));
+    fix.deal_client
+        .dispute_deal(&fix.buyers[0], &circle_id, &symbol_short!("damaged"));
 
     // Unauthorized non-admin attempts resolution
     let unauthorized_caller = Address::generate(&env);
-    let err = fix.deal_client.try_resolve_dispute(&unauthorized_caller, &circle_id, &true);
+    let err = fix
+        .deal_client
+        .try_resolve_dispute(&unauthorized_caller, &circle_id, &true);
     assert_eq!(err, Err(Ok(Error::Unauthorized)));
 }
 
@@ -331,26 +340,30 @@ fn test_e2e_double_claim_rebate_protection() {
         &86_400,
     );
 
-    fix.deal_client.commit_demand(&fix.buyers[0], &circle_id, &5);
-    fix.deal_client.commit_demand(&fix.buyers[1], &circle_id, &5);
+    fix.deal_client
+        .commit_demand(&fix.buyers[0], &circle_id, &5);
+    fix.deal_client
+        .commit_demand(&fix.buyers[1], &circle_id, &5);
 
-    let offer_id = fix.deal_client.submit_seller_offer(
-        &fix.seller,
-        &circle_id,
-        &8_000_000,
-        &20,
-        &5,
-    );
+    let offer_id =
+        fix.deal_client
+            .submit_seller_offer(&fix.seller, &circle_id, &8_000_000, &20, &5);
 
-    fix.deal_client.accept_seller_offer(&fix.creator, &circle_id, &offer_id);
-    fix.deal_client.initiate_inspection(&fix.creator, &circle_id, &86_400);
-    fix.deal_client.confirm_inspection_and_settle(&fix.creator, &circle_id);
+    fix.deal_client
+        .accept_seller_offer(&fix.creator, &circle_id, &offer_id);
+    fix.deal_client
+        .initiate_inspection(&fix.creator, &circle_id, &86_400);
+    fix.deal_client
+        .confirm_inspection_and_settle(&fix.creator, &circle_id);
 
     // First claim succeeds
-    fix.deal_client.claim_surplus_rebate(&fix.buyers[0], &circle_id);
+    fix.deal_client
+        .claim_surplus_rebate(&fix.buyers[0], &circle_id);
 
     // Second claim must fail with AlreadyClaimedRebate
-    let err = fix.deal_client.try_claim_surplus_rebate(&fix.buyers[0], &circle_id);
+    let err = fix
+        .deal_client
+        .try_claim_surplus_rebate(&fix.buyers[0], &circle_id);
     assert_eq!(err, Err(Ok(Error::AlreadyClaimedRebate)));
 }
 
@@ -371,7 +384,8 @@ fn test_e2e_expired_circle_refund() {
     );
 
     // Buyer 0 commits 3 units (30_000_000 stroops). Quorum not reached.
-    fix.deal_client.commit_demand(&fix.buyers[0], &circle_id, &3);
+    fix.deal_client
+        .commit_demand(&fix.buyers[0], &circle_id, &3);
     assert_eq!(fix.token_client.balance(&fix.buyers[0]), 970_000_000);
 
     // Fast-forward ledger timestamp past circle deadline
@@ -399,25 +413,26 @@ fn test_e2e_premature_settlement_rejection() {
         &86_400,
     );
 
-    fix.deal_client.commit_demand(&fix.buyers[0], &circle_id, &5);
-    fix.deal_client.commit_demand(&fix.buyers[1], &circle_id, &5);
+    fix.deal_client
+        .commit_demand(&fix.buyers[0], &circle_id, &5);
+    fix.deal_client
+        .commit_demand(&fix.buyers[1], &circle_id, &5);
 
-    let offer_id = fix.deal_client.submit_seller_offer(
-        &fix.seller,
-        &circle_id,
-        &8_000_000,
-        &20,
-        &5,
-    );
+    let offer_id =
+        fix.deal_client
+            .submit_seller_offer(&fix.seller, &circle_id, &8_000_000, &20, &5);
 
-    fix.deal_client.accept_seller_offer(&fix.creator, &circle_id, &offer_id);
+    fix.deal_client
+        .accept_seller_offer(&fix.creator, &circle_id, &offer_id);
 
     // Circle is Accepted but NOT yet in Inspection phase
     let circle = fix.deal_client.get_circle(&circle_id);
     assert_eq!(circle.status, CircleStatus::QuorumReached);
 
     // Calling confirm_inspection_and_settle prematurely must fail with NotUnderInspection
-    let err = fix.deal_client.try_confirm_inspection_and_settle(&fix.creator, &circle_id);
+    let err = fix
+        .deal_client
+        .try_confirm_inspection_and_settle(&fix.creator, &circle_id);
     assert_eq!(err, Err(Ok(Error::NotUnderInspection)));
 }
 
@@ -435,17 +450,15 @@ fn test_e2e_offer_price_exceeds_target_rejection() {
         &86_400,
     );
 
-    fix.deal_client.commit_demand(&fix.buyers[0], &circle_id, &5);
-    fix.deal_client.commit_demand(&fix.buyers[1], &circle_id, &5);
+    fix.deal_client
+        .commit_demand(&fix.buyers[0], &circle_id, &5);
+    fix.deal_client
+        .commit_demand(&fix.buyers[1], &circle_id, &5);
 
     // Offer price 12_000_000 > target ceiling 10_000_000
-    let err = fix.deal_client.try_submit_seller_offer(
-        &fix.seller,
-        &circle_id,
-        &12_000_000,
-        &20,
-        &5,
-    );
+    let err =
+        fix.deal_client
+            .try_submit_seller_offer(&fix.seller, &circle_id, &12_000_000, &20, &5);
 
     assert_eq!(err, Err(Ok(Error::PriceExceedsTarget)));
 }
@@ -464,27 +477,21 @@ fn test_e2e_duplicate_merchant_offer_rejection() {
         &86_400,
     );
 
-    fix.deal_client.commit_demand(&fix.buyers[0], &circle_id, &5);
-    fix.deal_client.commit_demand(&fix.buyers[1], &circle_id, &5);
+    fix.deal_client
+        .commit_demand(&fix.buyers[0], &circle_id, &5);
+    fix.deal_client
+        .commit_demand(&fix.buyers[1], &circle_id, &5);
 
     // First offer succeeds
-    let offer_id = fix.deal_client.submit_seller_offer(
-        &fix.seller,
-        &circle_id,
-        &9_000_000,
-        &20,
-        &5,
-    );
+    let offer_id =
+        fix.deal_client
+            .submit_seller_offer(&fix.seller, &circle_id, &9_000_000, &20, &5);
     assert_eq!(offer_id, 1);
 
     // Second offer from the same seller for the same circle fails
-    let err = fix.deal_client.try_submit_seller_offer(
-        &fix.seller,
-        &circle_id,
-        &8_500_000,
-        &25,
-        &4,
-    );
+    let err = fix
+        .deal_client
+        .try_submit_seller_offer(&fix.seller, &circle_id, &8_500_000, &25, &4);
     assert_eq!(err, Err(Ok(Error::DuplicateOffer)));
 }
 
@@ -502,10 +509,13 @@ fn test_e2e_maximum_volume_overflow_enforcement() {
         &86_400,
     );
 
-    fix.deal_client.commit_demand(&fix.buyers[0], &circle_id, &10);
+    fix.deal_client
+        .commit_demand(&fix.buyers[0], &circle_id, &10);
 
     // Attempting to commit 10 more units exceeds 15 max volume cap
-    let err = fix.deal_client.try_commit_demand(&fix.buyers[1], &circle_id, &10);
+    let err = fix
+        .deal_client
+        .try_commit_demand(&fix.buyers[1], &circle_id, &10);
     assert_eq!(err, Err(Ok(Error::VolumeExceeded)));
 }
 
@@ -543,35 +553,31 @@ fn test_e2e_multi_asset_sac_settlement() {
 
     // 1. Create Demand Circle for USDC
     // Target unit price: 10_000_000 (1 USDC), min volume 10, max volume 50
-    let circle_id = fix.deal_client.create_circle(
-        &fix.creator,
-        &usdc_address,
-        &10_000_000,
-        &10,
-        &50,
-        &86_400,
-    );
+    let circle_id =
+        fix.deal_client
+            .create_circle(&fix.creator, &usdc_address, &10_000_000, &10, &50, &86_400);
 
     // 2. Commit USDC demand
-    fix.deal_client.commit_demand(&fix.buyers[0], &circle_id, &5);
-    fix.deal_client.commit_demand(&fix.buyers[1], &circle_id, &5);
+    fix.deal_client
+        .commit_demand(&fix.buyers[0], &circle_id, &5);
+    fix.deal_client
+        .commit_demand(&fix.buyers[1], &circle_id, &5);
 
     assert_eq!(usdc_token_client.balance(&fix.contract_id), 100_000_000);
     // Base XLM token contract balance remains 0
     assert_eq!(fix.token_client.balance(&fix.contract_id), 0);
 
     // 3. Wholesale offer in USDC at 9 USDC
-    let offer_id = fix.deal_client.submit_seller_offer(
-        &fix.seller,
-        &circle_id,
-        &9_000_000,
-        &20,
-        &5,
-    );
+    let offer_id =
+        fix.deal_client
+            .submit_seller_offer(&fix.seller, &circle_id, &9_000_000, &20, &5);
 
-    fix.deal_client.accept_seller_offer(&fix.creator, &circle_id, &offer_id);
-    fix.deal_client.initiate_inspection(&fix.creator, &circle_id, &86_400);
-    fix.deal_client.confirm_inspection_and_settle(&fix.creator, &circle_id);
+    fix.deal_client
+        .accept_seller_offer(&fix.creator, &circle_id, &offer_id);
+    fix.deal_client
+        .initiate_inspection(&fix.creator, &circle_id, &86_400);
+    fix.deal_client
+        .confirm_inspection_and_settle(&fix.creator, &circle_id);
 
     // 4. Verify wholesale payout in USDC
     // 10 units * 9 USDC = 90_000_000 stroops
@@ -600,7 +606,8 @@ fn test_e2e_instance_storage_ttl_extension() {
     );
 
     // Commit demand executes extend_ttl on instance storage
-    fix.deal_client.commit_demand(&fix.buyers[0], &circle_id, &5);
+    fix.deal_client
+        .commit_demand(&fix.buyers[0], &circle_id, &5);
     let circle = fix.deal_client.get_circle(&circle_id);
     assert_eq!(circle.current_volume, 5);
 }
@@ -621,22 +628,23 @@ fn test_e2e_event_emission_lifecycle() {
     );
 
     // 2. Demand commitment event
-    fix.deal_client.commit_demand(&fix.buyers[0], &circle_id, &5);
-    fix.deal_client.commit_demand(&fix.buyers[1], &circle_id, &5);
+    fix.deal_client
+        .commit_demand(&fix.buyers[0], &circle_id, &5);
+    fix.deal_client
+        .commit_demand(&fix.buyers[1], &circle_id, &5);
 
     // 3. Seller offer event
-    let offer_id = fix.deal_client.submit_seller_offer(
-        &fix.seller,
-        &circle_id,
-        &8_000_000,
-        &20,
-        &5,
-    );
+    let offer_id =
+        fix.deal_client
+            .submit_seller_offer(&fix.seller, &circle_id, &8_000_000, &20, &5);
 
     // 4. Inspection and settlement events
-    fix.deal_client.accept_seller_offer(&fix.creator, &circle_id, &offer_id);
-    fix.deal_client.initiate_inspection(&fix.creator, &circle_id, &86_400);
-    fix.deal_client.confirm_inspection_and_settle(&fix.creator, &circle_id);
+    fix.deal_client
+        .accept_seller_offer(&fix.creator, &circle_id, &offer_id);
+    fix.deal_client
+        .initiate_inspection(&fix.creator, &circle_id, &86_400);
+    fix.deal_client
+        .confirm_inspection_and_settle(&fix.creator, &circle_id);
 
     // Verify events were emitted throughout the cooperative lifecycle
     let all_events = env.events().all();

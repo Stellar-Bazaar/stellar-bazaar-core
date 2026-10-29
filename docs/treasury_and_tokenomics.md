@@ -54,3 +54,4 @@ All terms are calculated in integer stroops, leaving **zero dust or unallocated 
    - Fees are transferred directly to a configurable multi-sig DAO treasury account.
 3. **Dispute Protection**:
    - If a deal is cancelled or 100% refunded on dispute, protocol fees are waived to protect participants.
+

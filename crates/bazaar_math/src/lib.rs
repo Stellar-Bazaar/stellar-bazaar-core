@@ -47,10 +47,7 @@ pub fn calculate_quorum_pct(current_volume: u32, target_volume: u32) -> Result<u
     }
     let current = current_volume as u64;
     let target = target_volume as u64;
-    let pct = current
-        .checked_mul(100)
-        .ok_or(MathError::Overflow)?
-        / target;
+    let pct = current.checked_mul(100).ok_or(MathError::Overflow)? / target;
     Ok(pct as u32)
 }
 

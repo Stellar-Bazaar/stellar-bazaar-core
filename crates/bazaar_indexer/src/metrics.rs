@@ -7,7 +7,11 @@ pub struct PrometheusExporter;
 impl PrometheusExporter {
     pub fn render(state: &IndexerDaemonState, consecutive_errors: u32) -> String {
         let health = HealthChecker::evaluate(state, consecutive_errors);
-        let health_val = if health.status == HealthStatus::Healthy { 1 } else { 0 };
+        let health_val = if health.status == HealthStatus::Healthy {
+            1
+        } else {
+            0
+        };
 
         format!(
             "# HELP bazaar_indexer_latest_ledger Latest processed Soroban ledger sequence\n\

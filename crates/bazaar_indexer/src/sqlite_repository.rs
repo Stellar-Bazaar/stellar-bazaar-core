@@ -1,8 +1,8 @@
-use std::sync::{Arc, Mutex};
-use rusqlite::{params, Connection};
 use crate::domain::*;
 use crate::schema::SQLITE_INITIAL_SCHEMA;
 use crate::{BazaarRepository, IndexerError};
+use rusqlite::{params, Connection};
+use std::sync::{Arc, Mutex};
 
 /// Persistent SQLite implementation of the BazaarRepository storage trait
 pub struct SqliteBazaarRepository {
@@ -12,8 +12,8 @@ pub struct SqliteBazaarRepository {
 impl SqliteBazaarRepository {
     /// Initialize an in-memory SQLite database instance with schema migrations
     pub fn new_in_memory() -> Result<Self, IndexerError> {
-        let conn = Connection::open_in_memory()
-            .map_err(|e| IndexerError::Database(e.to_string()))?;
+        let conn =
+            Connection::open_in_memory().map_err(|e| IndexerError::Database(e.to_string()))?;
         conn.execute_batch(SQLITE_INITIAL_SCHEMA)
             .map_err(|e| IndexerError::Database(e.to_string()))?;
         Ok(Self {
@@ -23,8 +23,7 @@ impl SqliteBazaarRepository {
 
     /// Open or create a persistent on-disk SQLite database file with schema migrations
     pub fn new(path: &str) -> Result<Self, IndexerError> {
-        let conn = Connection::open(path)
-            .map_err(|e| IndexerError::Database(e.to_string()))?;
+        let conn = Connection::open(path).map_err(|e| IndexerError::Database(e.to_string()))?;
         conn.execute_batch(SQLITE_INITIAL_SCHEMA)
             .map_err(|e| IndexerError::Database(e.to_string()))?;
         Ok(Self {
@@ -78,7 +77,8 @@ impl BazaarRepository for SqliteBazaarRepository {
                 commitment.escrow_tx_hash,
                 commitment.status,
             ],
-        ).map_err(|e| IndexerError::Database(e.to_string()))?;
+        )
+        .map_err(|e| IndexerError::Database(e.to_string()))?;
         Ok(())
     }
 
@@ -107,7 +107,10 @@ impl BazaarRepository for SqliteBazaarRepository {
         Ok(())
     }
 
-    fn record_reputation(&mut self, reputation: SellerReputationRecord) -> Result<(), IndexerError> {
+    fn record_reputation(
+        &mut self,
+        reputation: SellerReputationRecord,
+    ) -> Result<(), IndexerError> {
         let conn = self.conn.lock().unwrap();
         conn.execute(
             r#"INSERT INTO seller_reputations (
@@ -138,43 +141,73 @@ impl BazaarRepository for SqliteBazaarRepository {
                FROM demand_circles WHERE id = ?1"#
         ).map_err(|e| IndexerError::Database(e.to_string()))?;
 
-        let mut rows = stmt.query(params![id]).map_err(|e| IndexerError::Database(e.to_string()))?;
-        if let Some(row) = rows.next().map_err(|e| IndexerError::Database(e.to_string()))? {
+        let mut rows = stmt
+            .query(params![id])
+            .map_err(|e| IndexerError::Database(e.to_string()))?;
+        if let Some(row) = rows
+            .next()
+            .map_err(|e| IndexerError::Database(e.to_string()))?
+        {
             Ok(Some(DemandCircleRecord {
-                id: row.get(0).map_err(|e| IndexerError::Database(e.to_string()))?,
-                title: row.get(1).map_err(|e| IndexerError::Database(e.to_string()))?,
-                category: row.get(2).map_err(|e| IndexerError::Database(e.to_string()))?,
-                target_unit_price_xlm: row.get(3).map_err(|e| IndexerError::Database(e.to_string()))?,
-                min_volume: row.get(4).map_err(|e| IndexerError::Database(e.to_string()))?,
-                max_volume: row.get(5).map_err(|e| IndexerError::Database(e.to_string()))?,
-                current_volume: row.get(6).map_err(|e| IndexerError::Database(e.to_string()))?,
-                status: row.get(7).map_err(|e| IndexerError::Database(e.to_string()))?,
-                creator_address: row.get(8).map_err(|e| IndexerError::Database(e.to_string()))?,
-                deadline_timestamp: row.get(9).map_err(|e| IndexerError::Database(e.to_string()))?,
+                id: row
+                    .get(0)
+                    .map_err(|e| IndexerError::Database(e.to_string()))?,
+                title: row
+                    .get(1)
+                    .map_err(|e| IndexerError::Database(e.to_string()))?,
+                category: row
+                    .get(2)
+                    .map_err(|e| IndexerError::Database(e.to_string()))?,
+                target_unit_price_xlm: row
+                    .get(3)
+                    .map_err(|e| IndexerError::Database(e.to_string()))?,
+                min_volume: row
+                    .get(4)
+                    .map_err(|e| IndexerError::Database(e.to_string()))?,
+                max_volume: row
+                    .get(5)
+                    .map_err(|e| IndexerError::Database(e.to_string()))?,
+                current_volume: row
+                    .get(6)
+                    .map_err(|e| IndexerError::Database(e.to_string()))?,
+                status: row
+                    .get(7)
+                    .map_err(|e| IndexerError::Database(e.to_string()))?,
+                creator_address: row
+                    .get(8)
+                    .map_err(|e| IndexerError::Database(e.to_string()))?,
+                deadline_timestamp: row
+                    .get(9)
+                    .map_err(|e| IndexerError::Database(e.to_string()))?,
             }))
         } else {
             Ok(None)
         }
     }
 
-    fn get_offers_for_circle(&self, circle_id: &str) -> Result<Vec<SellerOfferRecord>, IndexerError> {
+    fn get_offers_for_circle(
+        &self,
+        circle_id: &str,
+    ) -> Result<Vec<SellerOfferRecord>, IndexerError> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
             r#"SELECT id, circle_id, seller_address, offered_unit_price_xlm, available_volume, lead_time_days, status
                FROM seller_offers WHERE circle_id = ?1 ORDER BY submitted_at ASC"#
         ).map_err(|e| IndexerError::Database(e.to_string()))?;
 
-        let rows = stmt.query_map(params![circle_id], |row| {
-            Ok(SellerOfferRecord {
-                id: row.get(0)?,
-                circle_id: row.get(1)?,
-                seller_address: row.get(2)?,
-                offered_unit_price_xlm: row.get(3)?,
-                available_volume: row.get(4)?,
-                lead_time_days: row.get(5)?,
-                status: row.get(6)?,
+        let rows = stmt
+            .query_map(params![circle_id], |row| {
+                Ok(SellerOfferRecord {
+                    id: row.get(0)?,
+                    circle_id: row.get(1)?,
+                    seller_address: row.get(2)?,
+                    offered_unit_price_xlm: row.get(3)?,
+                    available_volume: row.get(4)?,
+                    lead_time_days: row.get(5)?,
+                    status: row.get(6)?,
+                })
             })
-        }).map_err(|e| IndexerError::Database(e.to_string()))?;
+            .map_err(|e| IndexerError::Database(e.to_string()))?;
 
         let mut offers = Vec::new();
         for offer in rows {
@@ -183,24 +216,29 @@ impl BazaarRepository for SqliteBazaarRepository {
         Ok(offers)
     }
 
-    fn get_commitments_for_circle(&self, circle_id: &str) -> Result<Vec<CommitmentRecord>, IndexerError> {
+    fn get_commitments_for_circle(
+        &self,
+        circle_id: &str,
+    ) -> Result<Vec<CommitmentRecord>, IndexerError> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
             r#"SELECT id, circle_id, buyer_address, quantity, committed_amount_xlm, escrow_tx_hash, status
                FROM buyer_commitments WHERE circle_id = ?1 ORDER BY created_at ASC"#
         ).map_err(|e| IndexerError::Database(e.to_string()))?;
 
-        let rows = stmt.query_map(params![circle_id], |row| {
-            Ok(CommitmentRecord {
-                id: row.get(0)?,
-                circle_id: row.get(1)?,
-                buyer_address: row.get(2)?,
-                quantity: row.get(3)?,
-                committed_amount_xlm: row.get(4)?,
-                escrow_tx_hash: row.get(5)?,
-                status: row.get(6)?,
+        let rows = stmt
+            .query_map(params![circle_id], |row| {
+                Ok(CommitmentRecord {
+                    id: row.get(0)?,
+                    circle_id: row.get(1)?,
+                    buyer_address: row.get(2)?,
+                    quantity: row.get(3)?,
+                    committed_amount_xlm: row.get(4)?,
+                    escrow_tx_hash: row.get(5)?,
+                    status: row.get(6)?,
+                })
             })
-        }).map_err(|e| IndexerError::Database(e.to_string()))?;
+            .map_err(|e| IndexerError::Database(e.to_string()))?;
 
         let mut commitments = Vec::new();
         for commitment in rows {
@@ -209,23 +247,43 @@ impl BazaarRepository for SqliteBazaarRepository {
         Ok(commitments)
     }
 
-    fn get_seller_reputation(&self, seller: &str) -> Result<Option<SellerReputationRecord>, IndexerError> {
+    fn get_seller_reputation(
+        &self,
+        seller: &str,
+    ) -> Result<Option<SellerReputationRecord>, IndexerError> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
             r#"SELECT seller_address, successful_deals, total_volume_settled, total_amount_settled_xlm, disputed_or_refunded_deals, score_percentage
                FROM seller_reputations WHERE seller_address = ?1"#
         ).map_err(|e| IndexerError::Database(e.to_string()))?;
 
-        let mut rows = stmt.query(params![seller]).map_err(|e| IndexerError::Database(e.to_string()))?;
-        if let Some(row) = rows.next().map_err(|e| IndexerError::Database(e.to_string()))? {
-            let volume: i64 = row.get(2).map_err(|e| IndexerError::Database(e.to_string()))?;
+        let mut rows = stmt
+            .query(params![seller])
+            .map_err(|e| IndexerError::Database(e.to_string()))?;
+        if let Some(row) = rows
+            .next()
+            .map_err(|e| IndexerError::Database(e.to_string()))?
+        {
+            let volume: i64 = row
+                .get(2)
+                .map_err(|e| IndexerError::Database(e.to_string()))?;
             Ok(Some(SellerReputationRecord {
-                seller_address: row.get(0).map_err(|e| IndexerError::Database(e.to_string()))?,
-                successful_deals: row.get(1).map_err(|e| IndexerError::Database(e.to_string()))?,
+                seller_address: row
+                    .get(0)
+                    .map_err(|e| IndexerError::Database(e.to_string()))?,
+                successful_deals: row
+                    .get(1)
+                    .map_err(|e| IndexerError::Database(e.to_string()))?,
                 total_volume_settled: volume as u64,
-                total_amount_settled_xlm: row.get(3).map_err(|e| IndexerError::Database(e.to_string()))?,
-                disputed_or_refunded_deals: row.get(4).map_err(|e| IndexerError::Database(e.to_string()))?,
-                score_percentage: row.get(5).map_err(|e| IndexerError::Database(e.to_string()))?,
+                total_amount_settled_xlm: row
+                    .get(3)
+                    .map_err(|e| IndexerError::Database(e.to_string()))?,
+                disputed_or_refunded_deals: row
+                    .get(4)
+                    .map_err(|e| IndexerError::Database(e.to_string()))?,
+                score_percentage: row
+                    .get(5)
+                    .map_err(|e| IndexerError::Database(e.to_string()))?,
             }))
         } else {
             Ok(None)
@@ -238,9 +296,16 @@ impl BazaarRepository for SqliteBazaarRepository {
             r#"SELECT latest_ledger_sequence FROM indexer_checkpoint WHERE network = 'testnet'"#
         ).map_err(|e| IndexerError::Database(e.to_string()))?;
 
-        let mut rows = stmt.query([]).map_err(|e| IndexerError::Database(e.to_string()))?;
-        if let Some(row) = rows.next().map_err(|e| IndexerError::Database(e.to_string()))? {
-            let seq: i64 = row.get(0).map_err(|e| IndexerError::Database(e.to_string()))?;
+        let mut rows = stmt
+            .query([])
+            .map_err(|e| IndexerError::Database(e.to_string()))?;
+        if let Some(row) = rows
+            .next()
+            .map_err(|e| IndexerError::Database(e.to_string()))?
+        {
+            let seq: i64 = row
+                .get(0)
+                .map_err(|e| IndexerError::Database(e.to_string()))?;
             Ok(seq as u64)
         } else {
             Ok(0)
@@ -275,19 +340,21 @@ impl BazaarRepository for SqliteBazaarRepository {
                FROM disputes WHERE circle_id = ?1 ORDER BY opened_at ASC"#
         ).map_err(|e| IndexerError::Database(e.to_string()))?;
 
-        let rows = stmt.query_map(params![circle_id], |row| {
-            let res_int: Option<i32> = row.get(5)?;
-            Ok(DisputeRecord {
-                id: row.get(0)?,
-                circle_id: row.get(1)?,
-                initiator_address: row.get(2)?,
-                dispute_reason: row.get(3)?,
-                status: row.get(4)?,
-                resolution_refund_to_buyers: res_int.map(|i| i == 1),
-                opened_at_timestamp: 0,
-                resolved_at_timestamp: None,
+        let rows = stmt
+            .query_map(params![circle_id], |row| {
+                let res_int: Option<i32> = row.get(5)?;
+                Ok(DisputeRecord {
+                    id: row.get(0)?,
+                    circle_id: row.get(1)?,
+                    initiator_address: row.get(2)?,
+                    dispute_reason: row.get(3)?,
+                    status: row.get(4)?,
+                    resolution_refund_to_buyers: res_int.map(|i| i == 1),
+                    opened_at_timestamp: 0,
+                    resolved_at_timestamp: None,
+                })
             })
-        }).map_err(|e| IndexerError::Database(e.to_string()))?;
+            .map_err(|e| IndexerError::Database(e.to_string()))?;
 
         let mut disputes = Vec::new();
         for d in rows {
@@ -315,25 +382,30 @@ impl BazaarRepository for SqliteBazaarRepository {
         Ok(())
     }
 
-    fn get_protocol_fees_for_circle(&self, circle_id: &str) -> Result<Vec<ProtocolFeeRecord>, IndexerError> {
+    fn get_protocol_fees_for_circle(
+        &self,
+        circle_id: &str,
+    ) -> Result<Vec<ProtocolFeeRecord>, IndexerError> {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
             r#"SELECT id, circle_id, gross_payout_stroops, fee_bps, fee_stroops, net_payout_stroops, treasury_address
                FROM protocol_fees WHERE circle_id = ?1 ORDER BY settled_at ASC"#
         ).map_err(|e| IndexerError::Database(e.to_string()))?;
 
-        let rows = stmt.query_map(params![circle_id], |row| {
-            Ok(ProtocolFeeRecord {
-                id: row.get(0)?,
-                circle_id: row.get(1)?,
-                gross_payout_stroops: row.get(2)?,
-                fee_bps: row.get(3)?,
-                fee_stroops: row.get(4)?,
-                net_payout_stroops: row.get(5)?,
-                treasury_address: row.get(6)?,
-                settled_at_timestamp: 0,
+        let rows = stmt
+            .query_map(params![circle_id], |row| {
+                Ok(ProtocolFeeRecord {
+                    id: row.get(0)?,
+                    circle_id: row.get(1)?,
+                    gross_payout_stroops: row.get(2)?,
+                    fee_bps: row.get(3)?,
+                    fee_stroops: row.get(4)?,
+                    net_payout_stroops: row.get(5)?,
+                    treasury_address: row.get(6)?,
+                    settled_at_timestamp: 0,
+                })
             })
-        }).map_err(|e| IndexerError::Database(e.to_string()))?;
+            .map_err(|e| IndexerError::Database(e.to_string()))?;
 
         let mut fees = Vec::new();
         for f in rows {
@@ -363,20 +435,22 @@ impl BazaarRepository for SqliteBazaarRepository {
                ORDER BY created_at DESC"#
         ).map_err(|e| IndexerError::Database(e.to_string()))?;
 
-        let rows = stmt.query_map([], |row| {
-            Ok(DemandCircleRecord {
-                id: row.get(0)?,
-                title: row.get(1)?,
-                category: row.get(2)?,
-                target_unit_price_xlm: row.get(3)?,
-                min_volume: row.get(4)?,
-                max_volume: row.get(5)?,
-                current_volume: row.get(6)?,
-                status: row.get(7)?,
-                creator_address: row.get(8)?,
-                deadline_timestamp: row.get(9)?,
+        let rows = stmt
+            .query_map([], |row| {
+                Ok(DemandCircleRecord {
+                    id: row.get(0)?,
+                    title: row.get(1)?,
+                    category: row.get(2)?,
+                    target_unit_price_xlm: row.get(3)?,
+                    min_volume: row.get(4)?,
+                    max_volume: row.get(5)?,
+                    current_volume: row.get(6)?,
+                    status: row.get(7)?,
+                    creator_address: row.get(8)?,
+                    deadline_timestamp: row.get(9)?,
+                })
             })
-        }).map_err(|e| IndexerError::Database(e.to_string()))?;
+            .map_err(|e| IndexerError::Database(e.to_string()))?;
 
         let mut circles = Vec::new();
         for c in rows {
@@ -392,17 +466,19 @@ impl BazaarRepository for SqliteBazaarRepository {
                FROM seller_reputations ORDER BY successful_deals DESC, score_percentage DESC LIMIT ?1"#
         ).map_err(|e| IndexerError::Database(e.to_string()))?;
 
-        let rows = stmt.query_map(params![limit as i64], |row| {
-            let volume: i64 = row.get(2)?;
-            Ok(SellerReputationRecord {
-                seller_address: row.get(0)?,
-                successful_deals: row.get(1)?,
-                total_volume_settled: volume as u64,
-                total_amount_settled_xlm: row.get(3)?,
-                disputed_or_refunded_deals: row.get(4)?,
-                score_percentage: row.get(5)?,
+        let rows = stmt
+            .query_map(params![limit as i64], |row| {
+                let volume: i64 = row.get(2)?;
+                Ok(SellerReputationRecord {
+                    seller_address: row.get(0)?,
+                    successful_deals: row.get(1)?,
+                    total_volume_settled: volume as u64,
+                    total_amount_settled_xlm: row.get(3)?,
+                    disputed_or_refunded_deals: row.get(4)?,
+                    score_percentage: row.get(5)?,
+                })
             })
-        }).map_err(|e| IndexerError::Database(e.to_string()))?;
+            .map_err(|e| IndexerError::Database(e.to_string()))?;
 
         let mut reps = Vec::new();
         for r in rows {

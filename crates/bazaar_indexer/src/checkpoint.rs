@@ -67,9 +67,9 @@ mod tests {
 
     #[test]
     fn test_checkpoint_idempotency_on_batch_replay() {
-        use crate::sqlite_repository::SqliteBazaarRepository;
         use crate::event_decoder::BazaarContractEvent;
         use crate::event_processor::EventProcessor;
+        use crate::sqlite_repository::SqliteBazaarRepository;
 
         let mut repo = SqliteBazaarRepository::new_in_memory().unwrap();
 

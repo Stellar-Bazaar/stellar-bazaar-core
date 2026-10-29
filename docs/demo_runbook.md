@@ -95,3 +95,4 @@ Escrow Solvency Verified: 0 stroops leakage. All invariants held!
 1. Switch to Buyer account (Bob).
 2. Click the **"Claim Surplus Rebate"** button in the banner.
 3. Bob's wallet balance increases by **400 XLM**, recovering their wholesale discount directly to their account!
+

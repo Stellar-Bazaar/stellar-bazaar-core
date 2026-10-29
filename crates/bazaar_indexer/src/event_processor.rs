@@ -117,7 +117,12 @@ impl EventProcessor {
                 ..
             } => {
                 if let Some(mut circle) = repo.get_circle(&circle_id.to_string())? {
-                    circle.status = if refund_to_buyers { "CANCELLED" } else { "SETTLED" }.to_string();
+                    circle.status = if refund_to_buyers {
+                        "CANCELLED"
+                    } else {
+                        "SETTLED"
+                    }
+                    .to_string();
                     repo.record_circle(circle)?;
                 }
             }

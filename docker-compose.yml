@@ -28,3 +28,4 @@ services:
 volumes:
   indexer-data:
     driver: local
+

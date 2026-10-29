@@ -56,3 +56,4 @@ describe('SDK Error Hierarchy', () => {
     expect(unknownErr.remediation).toContain('Check contract ledger logs');
   });
 });
+

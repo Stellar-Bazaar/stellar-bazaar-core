@@ -41,3 +41,4 @@ Frequently asked questions and operational troubleshooting tips for building on 
 - **Issue**: `bazaar-indexer: SQLite busy / database locked`
 - **Remedy**:
   - Ensure the SQLite database operates in **WAL (Write-Ahead Logging)** mode. Our schema automatically issues `PRAGMA journal_mode=WAL;` on startup.
+

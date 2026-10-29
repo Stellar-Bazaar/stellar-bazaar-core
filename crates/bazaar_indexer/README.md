@@ -147,3 +147,29 @@ The `event_decoder` module converts raw JSON-RPC event topics into strongly-type
 | Bulk Deal Settled | `("deal", "settled")` | `BazaarContractEvent::DealSettled` |
 | Surplus Rebate Claimed | `("rebate", "claimed")` | `BazaarContractEvent::SurplusRebateClaimed` |
 
+---
+
+## 6. Embedded HTTP REST API & CLI Binary
+
+The indexer embeds a lightweight, multi-threaded HTTP server exposing standard RESTful endpoints:
+
+### Running the Indexer Daemon:
+```bash
+# In daemon mode with HTTP REST server on port 8080
+cargo run -p bazaar-indexer -- --serve --port 8080
+
+# Dry-run validation mode
+cargo run -p bazaar-indexer -- --dry-run
+```
+
+### Endpoints Map:
+| Method | Path | Description |
+| :--- | :--- | :--- |
+| `GET` | `/health` | Ingestion status, processed ledgers, and consecutive error count |
+| `GET` | `/metrics` | Prometheus metrics format (`bazaar_events_ingested_total`, etc.) |
+| `GET` | `/api/v1/circles` | Paginated list of active buying circles with quorum stats |
+| `GET` | `/api/v1/circles/:id` | Detailed demand circle record with buyer commitments and offers |
+| `GET` | `/api/v1/top-sellers` | Top sellers ranked by completed deals and total settled volume |
+| `GET` | `/api/v1/disputes` | Active and resolved commercial disputes |
+| `GET` | `/api/v1/checkpoint` | Latest ingested ledger sequence checkpoint |
+

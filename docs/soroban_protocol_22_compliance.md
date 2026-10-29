@@ -45,3 +45,4 @@ Every state-mutating entry point (`create_deal_from_registry`, `commit_demand`, 
   );
   ```
 - Guaranteed forward compatibility with future Stellar protocol upgrades.
+
