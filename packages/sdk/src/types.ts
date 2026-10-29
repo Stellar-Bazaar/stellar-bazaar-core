@@ -16,8 +16,10 @@ export type OfferStatus =
   | 'REJECTED'
   | 'EXPIRED';
 
+export type NetworkId = 'testnet' | 'futurenet' | 'local';
+
 export interface NetworkProfile {
-  id: 'testnet' | 'futurenet' | 'local';
+  id: NetworkId;
   name: string;
   rpcUrl: string;
   horizonUrl: string;

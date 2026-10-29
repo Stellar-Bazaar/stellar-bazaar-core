@@ -1,8 +1,8 @@
-import { NetworkProfile } from './types';
+import { NetworkProfile, NetworkId } from './types';
 import { NETWORKS, CONTRACT_ADDRESSES } from './constants';
 
 export interface ClientConfig {
-  network?: 'testnet' | 'futurenet' | 'local';
+  network?: NetworkId;
   dealEngineAddress?: string;
   circleRegistryAddress?: string;
   customRpcUrl?: string;
@@ -20,15 +20,24 @@ export class StellarBazaarClient {
   private circleRegistryAddress: string;
 
   constructor(config: ClientConfig = {}) {
-    const netKey = config.network || 'testnet';
+    const netKey: NetworkId = config.network || 'testnet';
     const baseNet = NETWORKS[netKey] || NETWORKS.testnet;
+    if (!baseNet) {
+      throw new Error(`Invalid network: ${netKey}`);
+    }
 
     this.network = {
-      ...baseNet,
+      id: baseNet.id,
+      name: baseNet.name,
+      horizonUrl: baseNet.horizonUrl,
+      networkPassphrase: baseNet.networkPassphrase,
       rpcUrl: config.customRpcUrl || baseNet.rpcUrl,
     };
 
-    const presetAddresses = CONTRACT_ADDRESSES[netKey as keyof typeof CONTRACT_ADDRESSES] || CONTRACT_ADDRESSES.testnet;
+    const presetAddresses = CONTRACT_ADDRESSES[netKey] || CONTRACT_ADDRESSES.testnet;
+    if (!presetAddresses) {
+      throw new Error(`Missing contract addresses for network: ${netKey}`);
+    }
     this.dealEngineAddress = config.dealEngineAddress || presetAddresses.dealEngine;
     this.circleRegistryAddress = config.circleRegistryAddress || presetAddresses.circleRegistry;
   }
