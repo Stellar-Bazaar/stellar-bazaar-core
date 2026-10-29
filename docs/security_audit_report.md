@@ -36,7 +36,7 @@ This comprehensive security and architectural audit documents the complete remed
 |  [60] Codebase & SDK: First-party TypeScript SDK, TransactionBuilder,   |
 |       EventWatcher cursor polling, error hierarchies, build automation  |
 |  [60] General & Governance: Threat modeling, formal invariants, CI/CD,  |
-|       Docker containerization, reviewer runbooks, and Wave appeal letter|
+|       Docker containerization, reviewer runbooks, and ecosystem guides  |
 +-------------------------------------------------------------------------+
 ```
 

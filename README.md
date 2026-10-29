@@ -149,7 +149,6 @@ Genuine screenshots captured from development tools and running application:
 - [Stellar Ecosystem Relevance Brief](docs/stellar_ecosystem_relevance.md)
 - [Comprehensive Security Audit Report](docs/security_audit_report.md)
 - [Mathematical Invariants & Solvency Proofs](docs/smart_contract_formal_verification.md)
-- [Stellar Drips Wave Appeal Letter](docs/appeals/stellar_drips_wave_appeal_letter.md)
 - [Developer FAQ & Troubleshooting](docs/faq_and_troubleshooting.md)
 
 ---
