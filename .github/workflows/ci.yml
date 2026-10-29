@@ -42,6 +42,9 @@ jobs:
       - name: Run Workspace Tests
         run: cargo test --workspace --verbose
 
+      - name: Verify Rust Docstrings & Intra-Doc Links
+        run: cargo doc --workspace --no-deps --document-private-items
+
       - name: Build Soroban Contracts to WebAssembly
         run: |
           cargo rustc -p demand-circle-registry --target wasm32-unknown-unknown --release --crate-type=cdylib
