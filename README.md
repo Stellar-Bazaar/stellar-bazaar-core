@@ -157,6 +157,7 @@ Genuine screenshots captured from development tools and running application:
 
 ## Security & Governance
 
+- [Project Changelog](CHANGELOG.md)
 - [Security Policy & Threat Model](SECURITY.md)
 - [Code of Conduct](CODE_OF_CONDUCT.md)
 - [Contributor Guidelines](CONTRIBUTING.md)
