@@ -83,7 +83,7 @@ The programmable deal qualification, escrow custody, and settlement engine.
   - `commit_demand(buyer, circle_id, quantity)`: Escrows tokens from buyer custody to contract custody, tracks quorum, and prevents duplicate commitments.
   - `submit_seller_offer(seller, circle_id, unit_price, volume, lead_time_days) -> u64`: Validates competitive seller quote against circle ceiling price and reserves offer terms.
   - `accept_seller_offer(caller, circle_id, offer_id)`: Creator locks in agreed commercial terms and initiates inspection period.
-  - `settle_deal(circle_id, winning_offer_id)`: Releases escrowed payout (less protocol fee) to seller, updates on-chain verifiable seller reputation.
+  - `settle_deal(caller, circle_id, winning_offer_id)`: Releases escrowed payout (less protocol fee) to seller, updates on-chain verifiable seller reputation.
   - `claim_surplus_rebate(circle_id, buyer)`: Programmatically distributes price-difference savings rebate back to buyer.
   - `dispute_deal(circle_id, buyer, reason)`: Initiates formal dispute during active inspection period, halting payout.
   - `resolve_dispute(circle_id, arbitrator, refund_buyer_bps)`: Arbitrator executes binding fund partition between buyer and seller.
@@ -104,17 +104,17 @@ Lossless mathematical crate enforcing 7-decimal stroop conversions, surplus reba
 
 ## Comprehensive Test Suite & Simulation Evidence
 
-Stellar Bazaar boasts **319 passing automated tests** across all repositories and sub-packages:
+Stellar Bazaar boasts **324 passing automated tests** across all repositories and sub-packages:
 
 | Test Suite | Passing Tests | Language / Framework | Scope |
 | :--- | :--- | :--- | :--- |
-| `bazaar_deal_engine` | 31 tests | Rust (Soroban Host Testutils) | Quorum, Escrow, Disputes, SAC, Surplus Rebates |
+| `bazaar_deal_engine` | 34 tests | Rust (Soroban Host Testutils) | Quorum, Escrow, Disputes, SAC, Surplus Rebates |
 | `demand_circle_registry` | 7 tests | Rust (Soroban Host Testutils) | Constraints, Boundaries, Authority Guards |
 | `bazaar_indexer` | 30 tests | Rust (Unit + Integration) | Checkpoints, Relational SQLite, REST API, Prometheus |
 | `bazaar_math` | 6 tests | Rust | Lossless Stroop & Rebate Arithmetic |
 | `@stellar-bazaar/sdk` | 19 tests | TypeScript (Vitest) | Invocations, Fee Budgeting, Event Watcher, Error Map |
-| `stellar-bazaar-frontend` | 226 tests | TypeScript (Vitest 56 files) | React Components, Wallet State, Horizon Polling |
-| **Total Verified Tests** | **319 tests** | **100% Green** | **Zero Failures, Zero Linter Warnings** |
+| `stellar-bazaar-frontend` | 228 tests | TypeScript (Vitest 56 files) | React Components, Wallet State, Horizon Polling |
+| **Total Verified Tests** | **324 tests** | **100% Green** | **Zero Failures, Zero Linter Warnings** |
 
 ### Automated End-to-End Simulation
 Run the full cooperative deal lifecycle simulation with a single command:
