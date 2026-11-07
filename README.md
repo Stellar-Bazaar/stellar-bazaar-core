@@ -63,6 +63,16 @@ The core architecture, Soroban smart contracts, deployment automation, and event
 
 ---
 
+## Deployed On-Chain Contracts (Stellar Testnet)
+
+| Contract Name | Contract ID | Stellar Expert Explorer |
+| :--- | :--- | :--- |
+| **`DemandCircleRegistry`** | `CCBYRME7BW3IPB7F64D5A3NQ3N6QHAPO4NO3N3MFAIJJYK5TUMTCMEII` | [View on Stellar Expert](https://stellar.expert/explorer/testnet/contract/CCBYRME7BW3IPB7F64D5A3NQ3N6QHAPO4NO3N3MFAIJJYK5TUMTCMEII) |
+| **`BazaarDealEngine`** | `CDCK6A2QB5QTILDWILUQGAUWXI543TK63WN2OKG7WEWHBAMGZ6ESKY4G` | [View on Stellar Expert](https://stellar.expert/explorer/testnet/contract/CDCK6A2QB5QTILDWILUQGAUWXI543TK63WN2OKG7WEWHBAMGZ6ESKY4G) |
+| **RPC Network** | `https://soroban-testnet.stellar.org` | Protocol 22 Compatible |
+
+---
+
 ## Smart Contract Implementations
 
 ### 1. `contracts/demand_circle_registry`
@@ -70,25 +80,30 @@ The authoritative registry contract managing the lifecycle of demand circles on 
 - **Contract Methods**:
   - `initialize(admin: Address)`: Establishes administrative ownership and counters.
   - `create_circle(creator, title, metadata_uri, target_quantity, target_price_stroops, duration_seconds) -> u64`: Validates commercial rules, reserves circle ID, and emits structured `Created` event.
-  - `get_circle(id: u64) -> DemandCircle`: Authoritative on-chain lookup of circle parameters and status.
+  - `get_circle(circle_id: u64) -> DemandCircle`: Authoritative on-chain lookup of circle parameters and status with automatic persistent TTL extension.
   - `get_circle_count() -> u64`: Total number of registered demand circles.
-  - `close_circle(id: u64)`: Allows creator or admin to close circle when rules permit.
-  - `expire_circle(id: u64)`: Transitions circle to `Expired` state once the ledger deadline timestamp has elapsed.
+  - `close_circle(caller: Address, circle_id: u64)`: Allows creator to close circle when rules permit.
+  - `expire_circle(circle_id: u64)`: Transitions circle to `Expired` state once the ledger deadline timestamp has elapsed.
+  - `get_admin() -> Address`: Returns the registry administrator address.
 
 ### 2. `contracts/bazaar_deal_engine`
 The programmable deal qualification, escrow custody, and settlement engine.
 - **Contract Methods**:
-  - `initialize(admin: Address)`: Sets admin and counters.
+  - `initialize(admin: Address)`: Sets admin, counters, and initial treasury/fee configurations.
   - `create_deal_from_registry(creator, registry_contract, registry_circle_id, token, min_volume, max_volume) -> u64`: **Genuine cross-contract invocation** querying `DemandCircleRegistry.get_circle()`, verifying constraints, and establishing a linked collective purchasing deal.
   - `commit_demand(buyer, circle_id, quantity)`: Escrows tokens from buyer custody to contract custody, tracks quorum, and prevents duplicate commitments.
   - `submit_seller_offer(seller, circle_id, unit_price, volume, lead_time_days) -> u64`: Validates competitive seller quote against circle ceiling price and reserves offer terms.
   - `accept_seller_offer(caller, circle_id, offer_id)`: Creator locks in agreed commercial terms and initiates inspection period.
-  - `settle_deal(caller, circle_id, winning_offer_id)`: Releases escrowed payout (less protocol fee) to seller, updates on-chain verifiable seller reputation.
+  - `initiate_inspection(caller, circle_id, inspection_duration_seconds)`: Creator initiates a timed inspection window without modifying the circle's original funding deadline.
+  - `settle_deal(caller, circle_id, winning_offer_id)`: Enforces strict caller authorization (creator, admin, or winning seller after inspection deadline expires without dispute), releases escrowed payout (less protocol fee) to seller, and updates on-chain verifiable seller reputation.
   - `claim_surplus_rebate(circle_id, buyer)`: Programmatically distributes price-difference savings rebate back to buyer.
   - `dispute_deal(circle_id, buyer, reason)`: Initiates formal dispute during active inspection period, halting payout.
   - `resolve_dispute(circle_id, arbitrator, refund_buyer_bps)`: Arbitrator executes binding fund partition between buyer and seller.
+  - `cancel_circle(caller, circle_id)`: Allows creator to cancel circle before offer acceptance or inspection, unlocking full refunds for participants.
   - `claim_refund(buyer, circle_id)`: Returns 100% of escrowed capital to buyers upon circle expiration or cancellation.
   - `get_seller_reputation(seller) -> SellerReputation`: Returns on-chain transaction outcomes (`successful_deals`, `total_volume_settled`, `total_amount_settled`, `disputed_or_refunded_deals`).
+  - `update_fee_bps(caller, new_fee_bps)`: Allows admin to update protocol fee (bounded between 0 and 1,000 bps / 10%).
+  - `set_treasury(caller, new_treasury)`: Allows admin to update protocol fee treasury destination.
 
 ### 3. `packages/sdk` (`@stellar-bazaar/sdk`)
 Standalone TypeScript developer SDK for building dApps, automated merchant quoting bots, and wholesale group-buying extensions.
@@ -120,6 +135,45 @@ Stellar Bazaar boasts **324 passing automated tests** across all repositories an
 Run the full cooperative deal lifecycle simulation with a single command:
 ```bash
 make simulate-e2e
+```
+
+---
+
+## Getting Started Locally
+
+### Prerequisites
+- **Rust 1.80+** with `wasm32-unknown-unknown` target (`rustup target add wasm32-unknown-unknown`)
+- **Node.js 20+** and **npm** or **pnpm**
+- **Stellar CLI** (Protocol 22 compatible)
+
+### 1. Run Workspace Test Suite
+```bash
+cargo test --workspace
+```
+
+### 2. Lint and Format Verification
+```bash
+cargo clippy --workspace --all-targets -- -D warnings
+cargo fmt --all -- --check
+```
+
+### 3. Build WebAssembly Contracts
+```bash
+cargo rustc -p demand-circle-registry --target wasm32-unknown-unknown --release --crate-type=cdylib
+cargo rustc -p bazaar-deal-engine --target wasm32-unknown-unknown --release --crate-type=cdylib
+```
+
+### 4. Run Event Indexer Daemon
+```bash
+cargo run -p bazaar-indexer
+```
+
+### 5. Build and Test Developer SDK
+```bash
+cd packages/sdk
+npm install
+npm test
+npm run build
 ```
 
 ---
