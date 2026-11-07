@@ -149,7 +149,7 @@ impl DemandCircleRegistryContract {
         };
 
         env.storage()
-            .instance()
+            .persistent()
             .set(&DataKey::Circle(counter), &circle);
         env.storage()
             .instance()
@@ -157,6 +157,11 @@ impl DemandCircleRegistryContract {
         env.storage()
             .instance()
             .extend_ttl(INSTANCE_TTL_THRESHOLD, INSTANCE_TTL_EXTEND_TO);
+        env.storage().persistent().extend_ttl(
+            &DataKey::Circle(counter),
+            INSTANCE_TTL_THRESHOLD,
+            INSTANCE_TTL_EXTEND_TO,
+        );
 
         // Emit structured event for indexers
         env.events().publish(
@@ -169,11 +174,13 @@ impl DemandCircleRegistryContract {
 
     /// Reads an individual demand circle record by its ID.
     pub fn get_circle(env: Env, circle_id: u64) -> Result<DemandCircle, Error> {
+        env.storage().persistent().extend_ttl(
+            &DataKey::Circle(circle_id),
+            INSTANCE_TTL_THRESHOLD,
+            INSTANCE_TTL_EXTEND_TO,
+        );
         env.storage()
-            .instance()
-            .extend_ttl(INSTANCE_TTL_THRESHOLD, INSTANCE_TTL_EXTEND_TO);
-        env.storage()
-            .instance()
+            .persistent()
             .get(&DataKey::Circle(circle_id))
             .ok_or(Error::CircleNotFound)
     }
@@ -195,7 +202,7 @@ impl DemandCircleRegistryContract {
 
         let mut circle: DemandCircle = env
             .storage()
-            .instance()
+            .persistent()
             .get(&DataKey::Circle(circle_id))
             .ok_or(Error::CircleNotFound)?;
 
@@ -209,11 +216,13 @@ impl DemandCircleRegistryContract {
 
         circle.status = CircleStatus::Closed;
         env.storage()
-            .instance()
+            .persistent()
             .set(&DataKey::Circle(circle_id), &circle);
-        env.storage()
-            .instance()
-            .extend_ttl(INSTANCE_TTL_THRESHOLD, INSTANCE_TTL_EXTEND_TO);
+        env.storage().persistent().extend_ttl(
+            &DataKey::Circle(circle_id),
+            INSTANCE_TTL_THRESHOLD,
+            INSTANCE_TTL_EXTEND_TO,
+        );
 
         env.events().publish(
             (symbol_short!("circle"), symbol_short!("closed")),
@@ -227,7 +236,7 @@ impl DemandCircleRegistryContract {
     pub fn expire_circle(env: Env, circle_id: u64) -> Result<(), Error> {
         let mut circle: DemandCircle = env
             .storage()
-            .instance()
+            .persistent()
             .get(&DataKey::Circle(circle_id))
             .ok_or(Error::CircleNotFound)?;
 
@@ -241,11 +250,13 @@ impl DemandCircleRegistryContract {
 
         circle.status = CircleStatus::Expired;
         env.storage()
-            .instance()
+            .persistent()
             .set(&DataKey::Circle(circle_id), &circle);
-        env.storage()
-            .instance()
-            .extend_ttl(INSTANCE_TTL_THRESHOLD, INSTANCE_TTL_EXTEND_TO);
+        env.storage().persistent().extend_ttl(
+            &DataKey::Circle(circle_id),
+            INSTANCE_TTL_THRESHOLD,
+            INSTANCE_TTL_EXTEND_TO,
+        );
 
         env.events().publish(
             (symbol_short!("circle"), symbol_short!("expired")),

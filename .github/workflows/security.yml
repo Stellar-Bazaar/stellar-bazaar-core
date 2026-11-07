@@ -42,7 +42,7 @@ jobs:
       - name: Run npm Audit
         working-directory: packages/sdk
         run: |
-          npm audit --audit-level=high || true
+          npm audit --audit-level=high
 
   secret-detection:
     name: Secret & Credential Scanning
@@ -57,5 +57,4 @@ jobs:
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        continue-on-error: true
 

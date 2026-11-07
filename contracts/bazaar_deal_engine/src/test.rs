@@ -85,7 +85,7 @@ fn test_demand_circle_lifecycle_and_settlement() {
 
     // 6. Settle deal with winning offer
     // Payout = 6 units * 9_500_000 = 57_000_000
-    client.settle_deal(&circle_id, &offer_id);
+    client.settle_deal(&creator, &circle_id, &offer_id);
 
     let settled_circle = client.get_circle(&circle_id);
     assert_eq!(settled_circle.status, CircleStatus::Settled);
@@ -715,7 +715,7 @@ fn test_dynamic_fee_settlement_to_custom_treasury() {
     // Seller offers 8 XLM (80_000_000 stroops/unit) for 10 units -> Gross payout = 800_000_000 stroops
     let offer_id = client.submit_seller_offer(&seller, &circle_id, &80_000_000, &10, &5);
     client.accept_seller_offer(&creator, &circle_id, &offer_id);
-    client.settle_deal(&circle_id, &offer_id);
+    client.settle_deal(&creator, &circle_id, &offer_id);
 
     // 3% of 800_000_000 = 24_000_000 stroops
     assert_eq!(token_client.balance(&protocol_treasury), 24_000_000);
@@ -764,7 +764,7 @@ fn test_buyer_surplus_rebate_lifecycle() {
     // Seller quotes discounted price: 8_000_000 stroops (0.8 XLM)
     let offer_id = client.submit_seller_offer(&seller, &circle_id, &8_000_000, &10, &5);
     client.accept_seller_offer(&creator, &circle_id, &offer_id);
-    client.settle_deal(&circle_id, &offer_id);
+    client.settle_deal(&creator, &circle_id, &offer_id);
 
     // Buyer claims rebate: 10 units * (10_000_000 - 8_000_000) = 20_000_000 stroops (2 XLM discount savings)
     client.claim_surplus_rebate(&buyer, &circle_id);
@@ -773,4 +773,135 @@ fn test_buyer_surplus_rebate_lifecycle() {
     // Cannot claim rebate twice
     let err_double = client.try_claim_surplus_rebate(&buyer, &circle_id);
     assert_eq!(err_double, Err(Ok(Error::AlreadyClaimedRebate)));
+}
+
+#[test]
+fn test_unauthorized_settle_deal_fails() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let creator = Address::generate(&env);
+    let buyer = Address::generate(&env);
+    let seller = Address::generate(&env);
+    let attacker = Address::generate(&env);
+
+    let token_admin = Address::generate(&env);
+    let token_contract = env.register_stellar_asset_contract_v2(token_admin);
+    let token_admin_client = StellarAssetClient::new(&env, &token_contract.address());
+    token_admin_client.mint(&buyer, &100_000_000);
+
+    let contract_id = env.register(BazaarDealEngineContract, ());
+    let client = BazaarDealEngineContractClient::new(&env, &contract_id);
+    client.initialize(&admin);
+
+    let circle_id = client.create_circle(
+        &creator,
+        &token_contract.address(),
+        &10_000_000,
+        &1,
+        &5,
+        &86400,
+    );
+    client.commit_demand(&buyer, &circle_id, &1);
+    let offer_id = client.submit_seller_offer(&seller, &circle_id, &9_000_000, &5, &3);
+    client.accept_seller_offer(&creator, &circle_id, &offer_id);
+
+    // Attacker attempting to settle fails with Unauthorized
+    let err = client.try_settle_deal(&attacker, &circle_id, &offer_id);
+    assert_eq!(err, Err(Ok(Error::Unauthorized)));
+
+    // Creator can settle successfully
+    assert!(client
+        .try_settle_deal(&creator, &circle_id, &offer_id)
+        .is_ok());
+}
+
+#[test]
+fn test_settle_unaccepted_offer_fails() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let creator = Address::generate(&env);
+    let buyer = Address::generate(&env);
+    let seller1 = Address::generate(&env);
+    let seller2 = Address::generate(&env);
+
+    let token_admin = Address::generate(&env);
+    let token_contract = env.register_stellar_asset_contract_v2(token_admin);
+    let token_admin_client = StellarAssetClient::new(&env, &token_contract.address());
+    token_admin_client.mint(&buyer, &100_000_000);
+
+    let contract_id = env.register(BazaarDealEngineContract, ());
+    let client = BazaarDealEngineContractClient::new(&env, &contract_id);
+    client.initialize(&admin);
+
+    let circle_id = client.create_circle(
+        &creator,
+        &token_contract.address(),
+        &10_000_000,
+        &1,
+        &5,
+        &86400,
+    );
+    client.commit_demand(&buyer, &circle_id, &1);
+
+    let offer1 = client.submit_seller_offer(&seller1, &circle_id, &9_000_000, &5, &3);
+    let offer2 = client.submit_seller_offer(&seller2, &circle_id, &8_500_000, &5, &3);
+
+    // Creator accepts offer 2 (cheaper)
+    client.accept_seller_offer(&creator, &circle_id, &offer2);
+
+    // Attempting to settle offer 1 fails with OfferMismatch
+    let err = client.try_settle_deal(&creator, &circle_id, &offer1);
+    assert_eq!(err, Err(Ok(Error::OfferMismatch)));
+
+    // Settle offer 2 succeeds
+    assert!(client
+        .try_settle_deal(&creator, &circle_id, &offer2)
+        .is_ok());
+}
+
+#[test]
+fn test_cancel_during_inspection_or_after_acceptance_rejected() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let creator = Address::generate(&env);
+    let buyer = Address::generate(&env);
+    let seller = Address::generate(&env);
+
+    let token_admin = Address::generate(&env);
+    let token_contract = env.register_stellar_asset_contract_v2(token_admin);
+    let token_admin_client = StellarAssetClient::new(&env, &token_contract.address());
+    token_admin_client.mint(&buyer, &100_000_000);
+
+    let contract_id = env.register(BazaarDealEngineContract, ());
+    let client = BazaarDealEngineContractClient::new(&env, &contract_id);
+    client.initialize(&admin);
+
+    let circle_id = client.create_circle(
+        &creator,
+        &token_contract.address(),
+        &10_000_000,
+        &1,
+        &5,
+        &86400,
+    );
+    client.commit_demand(&buyer, &circle_id, &1);
+    let offer_id = client.submit_seller_offer(&seller, &circle_id, &9_000_000, &5, &3);
+    client.accept_seller_offer(&creator, &circle_id, &offer_id);
+
+    // Once an offer is accepted, cancellation is rejected
+    let err_accepted = client.try_cancel_circle(&creator, &circle_id);
+    assert_eq!(err_accepted, Err(Ok(Error::CircleAlreadyClosed)));
+
+    // Initiate inspection
+    client.initiate_inspection(&creator, &circle_id, &86400);
+
+    // Cancellation under inspection is rejected
+    let err_inspect = client.try_cancel_circle(&creator, &circle_id);
+    assert_eq!(err_inspect, Err(Ok(Error::CircleAlreadyClosed)));
 }

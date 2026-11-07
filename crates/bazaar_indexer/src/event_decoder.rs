@@ -60,31 +60,37 @@ pub fn decode_event(
     payload: &serde_json::Value,
 ) -> Result<Option<BazaarContractEvent>, IndexerError> {
     match (topic0, topic1) {
-        ("circle", "create") => {
+        ("circle", "create") | ("circle", "created") => {
             let circle_id = payload
                 .get("circle_id")
                 .and_then(|v| v.as_u64())
+                .or_else(|| payload.get(0).and_then(|v| v.as_u64()))
                 .unwrap_or(0);
             let creator = payload
                 .get("creator")
                 .and_then(|v| v.as_str())
+                .or_else(|| payload.get(1).and_then(|v| v.as_str()))
                 .unwrap_or("")
                 .to_string();
             let target_unit_price = payload
                 .get("target_unit_price")
                 .and_then(|v| v.as_i64())
+                .or_else(|| payload.get(2).and_then(|v| v.as_i64()))
                 .unwrap_or(0) as i128;
             let min_volume = payload
                 .get("min_volume")
                 .and_then(|v| v.as_u64())
+                .or_else(|| payload.get(3).and_then(|v| v.as_u64()))
                 .unwrap_or(0) as u32;
             let max_volume = payload
                 .get("max_volume")
                 .and_then(|v| v.as_u64())
+                .or_else(|| payload.get(4).and_then(|v| v.as_u64()))
                 .unwrap_or(0) as u32;
             let deadline = payload
                 .get("deadline")
                 .and_then(|v| v.as_u64())
+                .or_else(|| payload.get(5).and_then(|v| v.as_u64()))
                 .unwrap_or(0);
 
             Ok(Some(BazaarContractEvent::CircleCreated {
@@ -96,21 +102,28 @@ pub fn decode_event(
                 deadline,
             }))
         }
-        ("demand", "commit") => {
+        ("demand", "commit") | ("demand", "committed") => {
             let circle_id = payload
                 .get("circle_id")
                 .and_then(|v| v.as_u64())
+                .or_else(|| payload.get(0).and_then(|v| v.as_u64()))
                 .unwrap_or(0);
             let buyer = payload
                 .get("buyer")
                 .and_then(|v| v.as_str())
+                .or_else(|| payload.get(1).and_then(|v| v.as_str()))
                 .unwrap_or("")
                 .to_string();
             let quantity = payload
                 .get("quantity")
                 .and_then(|v| v.as_u64())
+                .or_else(|| payload.get(2).and_then(|v| v.as_u64()))
                 .unwrap_or(0) as u32;
-            let amount = payload.get("amount").and_then(|v| v.as_i64()).unwrap_or(0) as i128;
+            let amount = payload
+                .get("amount")
+                .and_then(|v| v.as_i64())
+                .or_else(|| payload.get(3).and_then(|v| v.as_i64()))
+                .unwrap_or(0) as i128;
 
             Ok(Some(BazaarContractEvent::DemandCommitted {
                 circle_id,
@@ -119,28 +132,37 @@ pub fn decode_event(
                 amount,
             }))
         }
-        ("offer", "submit") => {
+        ("offer", "submit") | ("offer", "submitted") => {
             let offer_id = payload
                 .get("offer_id")
                 .and_then(|v| v.as_u64())
+                .or_else(|| payload.get(1).and_then(|v| v.as_u64()))
                 .unwrap_or(0);
             let circle_id = payload
                 .get("circle_id")
                 .and_then(|v| v.as_u64())
+                .or_else(|| payload.get(0).and_then(|v| v.as_u64()))
                 .unwrap_or(0);
             let seller = payload
                 .get("seller")
                 .and_then(|v| v.as_str())
+                .or_else(|| payload.get(2).and_then(|v| v.as_str()))
                 .unwrap_or("")
                 .to_string();
             let unit_price = payload
                 .get("unit_price")
                 .and_then(|v| v.as_i64())
+                .or_else(|| payload.get(3).and_then(|v| v.as_i64()))
                 .unwrap_or(0) as i128;
-            let volume = payload.get("volume").and_then(|v| v.as_u64()).unwrap_or(0) as u32;
+            let volume = payload
+                .get("volume")
+                .and_then(|v| v.as_u64())
+                .or_else(|| payload.get(4).and_then(|v| v.as_u64()))
+                .unwrap_or(0) as u32;
             let lead_time_days = payload
                 .get("lead_time_days")
                 .and_then(|v| v.as_u64())
+                .or_else(|| payload.get(5).and_then(|v| v.as_u64()))
                 .unwrap_or(0) as u32;
 
             Ok(Some(BazaarContractEvent::OfferSubmitted {
@@ -152,19 +174,22 @@ pub fn decode_event(
                 lead_time_days,
             }))
         }
-        ("inspect", "start") => {
+        ("inspect", "start") | ("inspect", "started") => {
             let circle_id = payload
                 .get("circle_id")
                 .and_then(|v| v.as_u64())
+                .or_else(|| payload.get(0).and_then(|v| v.as_u64()))
                 .unwrap_or(0);
             let caller = payload
                 .get("caller")
                 .and_then(|v| v.as_str())
+                .or_else(|| payload.get(1).and_then(|v| v.as_str()))
                 .unwrap_or("")
                 .to_string();
             let inspection_deadline = payload
                 .get("inspection_deadline")
                 .and_then(|v| v.as_u64())
+                .or_else(|| payload.get(2).and_then(|v| v.as_u64()))
                 .unwrap_or(0);
 
             Ok(Some(BazaarContractEvent::InspectionStarted {
@@ -173,19 +198,22 @@ pub fn decode_event(
                 inspection_deadline,
             }))
         }
-        ("dispute", "opened") => {
+        ("dispute", "opened") | ("dispute", "open") => {
             let circle_id = payload
                 .get("circle_id")
                 .and_then(|v| v.as_u64())
+                .or_else(|| payload.get(0).and_then(|v| v.as_u64()))
                 .unwrap_or(0);
             let caller = payload
                 .get("caller")
                 .and_then(|v| v.as_str())
+                .or_else(|| payload.get(1).and_then(|v| v.as_str()))
                 .unwrap_or("")
                 .to_string();
             let reason = payload
                 .get("reason")
                 .and_then(|v| v.as_str())
+                .or_else(|| payload.get(2).and_then(|v| v.as_str()))
                 .unwrap_or("")
                 .to_string();
 
@@ -195,19 +223,22 @@ pub fn decode_event(
                 reason,
             }))
         }
-        ("dispute", "resolve") => {
+        ("dispute", "resolve") | ("dispute", "resolved") => {
             let circle_id = payload
                 .get("circle_id")
                 .and_then(|v| v.as_u64())
+                .or_else(|| payload.get(0).and_then(|v| v.as_u64()))
                 .unwrap_or(0);
             let caller = payload
                 .get("caller")
                 .and_then(|v| v.as_str())
+                .or_else(|| payload.get(1).and_then(|v| v.as_str()))
                 .unwrap_or("")
                 .to_string();
             let refund_to_buyers = payload
                 .get("refund_to_buyers")
                 .and_then(|v| v.as_bool())
+                .or_else(|| payload.get(2).and_then(|v| v.as_bool()))
                 .unwrap_or(false);
 
             Ok(Some(BazaarContractEvent::DisputeResolved {
@@ -216,18 +247,21 @@ pub fn decode_event(
                 refund_to_buyers,
             }))
         }
-        ("deal", "settled") => {
+        ("deal", "settled") | ("deal", "settle") => {
             let circle_id = payload
                 .get("circle_id")
                 .and_then(|v| v.as_u64())
+                .or_else(|| payload.get(0).and_then(|v| v.as_u64()))
                 .unwrap_or(0);
             let winning_offer_id = payload
                 .get("winning_offer_id")
                 .and_then(|v| v.as_u64())
+                .or_else(|| payload.get(1).and_then(|v| v.as_u64()))
                 .unwrap_or(0);
             let seller_payout = payload
                 .get("seller_payout")
                 .and_then(|v| v.as_i64())
+                .or_else(|| payload.get(2).and_then(|v| v.as_i64()))
                 .unwrap_or(0) as i128;
 
             Ok(Some(BazaarContractEvent::DealSettled {

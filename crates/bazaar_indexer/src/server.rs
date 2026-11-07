@@ -70,8 +70,11 @@ impl ApiServer {
         }
     }
 
-    /// Processes a single client TCP connection
+    /// Processes a single client TCP connection with socket read/write timeouts
     pub fn handle_client(&self, mut stream: TcpStream) {
+        let _ = stream.set_read_timeout(Some(std::time::Duration::from_secs(5)));
+        let _ = stream.set_write_timeout(Some(std::time::Duration::from_secs(5)));
+
         let mut buffer = [0u8; 4096];
         if let Ok(bytes_read) = stream.read(&mut buffer) {
             if bytes_read > 0 {
@@ -90,7 +93,7 @@ impl ApiServer {
         let _ = stream.flush();
     }
 
-    /// Starts synchronous TCP listening loop
+    /// Starts TCP listening loop with concurrent stream handling
     pub fn serve(&self, addr: &str) -> Result<(), std::io::Error> {
         let listener = TcpListener::bind(addr)?;
         println!("[ApiServer] Listening on http://{}", addr);
@@ -98,7 +101,13 @@ impl ApiServer {
         for stream in listener.incoming() {
             match stream {
                 Ok(stream) => {
-                    self.handle_client(stream);
+                    let server_clone = Self {
+                        repo: Arc::clone(&self.repo),
+                        worker: Arc::clone(&self.worker),
+                    };
+                    std::thread::spawn(move || {
+                        server_clone.handle_client(stream);
+                    });
                 }
                 Err(e) => {
                     eprintln!("[ApiServer] TCP stream error: {}", e);
