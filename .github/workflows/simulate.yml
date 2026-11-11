@@ -48,4 +48,3 @@ jobs:
         run: |
           chmod +x scripts/simulate_e2e_cooperative_lifecycle.sh
           ./scripts/simulate_e2e_cooperative_lifecycle.sh
-

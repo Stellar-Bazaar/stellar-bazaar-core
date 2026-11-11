@@ -3,18 +3,9 @@
  */
 
 export type CircleStatus =
-  | 'OPEN'
-  | 'QUORUM_REACHED'
-  | 'INSPECTION'
-  | 'SETTLED'
-  | 'CANCELLED'
-  | 'DISPUTED';
+  'OPEN' | 'QUORUM_REACHED' | 'INSPECTION' | 'SETTLED' | 'CANCELLED' | 'DISPUTED';
 
-export type OfferStatus =
-  | 'SUBMITTED'
-  | 'ACCEPTED'
-  | 'REJECTED'
-  | 'EXPIRED';
+export type OfferStatus = 'SUBMITTED' | 'ACCEPTED' | 'REJECTED' | 'EXPIRED';
 
 export type NetworkId = 'testnet' | 'futurenet' | 'local';
 

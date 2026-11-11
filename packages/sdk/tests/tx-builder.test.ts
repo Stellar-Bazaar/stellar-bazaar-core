@@ -34,12 +34,11 @@ describe('TransactionBuilder', () => {
   });
 
   it('customizes resource budget metrics', () => {
-    const builder = new TransactionBuilder('GBUYER123', dummyInvocation)
-      .setResourceBudget({
-        cpuInstructions: 3_000_000,
-        memoryBytes: 1_200_000,
-        minResourceFeeStroops: 45_000n,
-      });
+    const builder = new TransactionBuilder('GBUYER123', dummyInvocation).setResourceBudget({
+      cpuInstructions: 3_000_000,
+      memoryBytes: 1_200_000,
+      minResourceFeeStroops: 45_000n,
+    });
 
     const tx = builder.build();
     expect(tx.estimatedCpuInstructions).toBe(3_000_000);
@@ -57,4 +56,3 @@ describe('TransactionBuilder', () => {
     expect(tx.timeoutSeconds).toBe(300);
   });
 });
-

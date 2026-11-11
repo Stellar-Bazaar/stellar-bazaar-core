@@ -65,18 +65,20 @@ The core architecture, Soroban smart contracts, deployment automation, and event
 
 ## Deployed On-Chain Contracts (Stellar Testnet)
 
-| Contract Name | Contract ID | Stellar Expert Explorer |
-| :--- | :--- | :--- |
+| Contract Name              | Contract ID                                                | Stellar Expert Explorer                                                                                                             |
+| :------------------------- | :--------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------- |
 | **`DemandCircleRegistry`** | `CCBYRME7BW3IPB7F64D5A3NQ3N6QHAPO4NO3N3MFAIJJYK5TUMTCMEII` | [View on Stellar Expert](https://stellar.expert/explorer/testnet/contract/CCBYRME7BW3IPB7F64D5A3NQ3N6QHAPO4NO3N3MFAIJJYK5TUMTCMEII) |
-| **`BazaarDealEngine`** | `CDCK6A2QB5QTILDWILUQGAUWXI543TK63WN2OKG7WEWHBAMGZ6ESKY4G` | [View on Stellar Expert](https://stellar.expert/explorer/testnet/contract/CDCK6A2QB5QTILDWILUQGAUWXI543TK63WN2OKG7WEWHBAMGZ6ESKY4G) |
-| **RPC Network** | `https://soroban-testnet.stellar.org` | Protocol 22 Compatible |
+| **`BazaarDealEngine`**     | `CDCK6A2QB5QTILDWILUQGAUWXI543TK63WN2OKG7WEWHBAMGZ6ESKY4G` | [View on Stellar Expert](https://stellar.expert/explorer/testnet/contract/CDCK6A2QB5QTILDWILUQGAUWXI543TK63WN2OKG7WEWHBAMGZ6ESKY4G) |
+| **RPC Network**            | `https://soroban-testnet.stellar.org`                      | Protocol 22 Compatible                                                                                                              |
 
 ---
 
 ## Smart Contract Implementations
 
 ### 1. `contracts/demand_circle_registry`
+
 The authoritative registry contract managing the lifecycle of demand circles on Soroban.
+
 - **Contract Methods**:
   - `initialize(admin: Address)`: Establishes administrative ownership and counters.
   - `create_circle(creator, title, metadata_uri, target_quantity, target_price_stroops, duration_seconds) -> u64`: Validates commercial rules, reserves circle ID, and emits structured `Created` event.
@@ -87,7 +89,9 @@ The authoritative registry contract managing the lifecycle of demand circles on 
   - `get_admin() -> Address`: Returns the registry administrator address.
 
 ### 2. `contracts/bazaar_deal_engine`
+
 The programmable deal qualification, escrow custody, and settlement engine.
+
 - **Contract Methods**:
   - `initialize(admin: Address)`: Sets admin, counters, and initial treasury/fee configurations.
   - `create_deal_from_registry(creator, registry_contract, registry_circle_id, token, min_volume, max_volume) -> u64`: **Genuine cross-contract invocation** querying `DemandCircleRegistry.get_circle()`, verifying constraints, and establishing a linked collective purchasing deal.
@@ -106,13 +110,17 @@ The programmable deal qualification, escrow custody, and settlement engine.
   - `set_treasury(caller, new_treasury)`: Allows admin to update protocol fee treasury destination.
 
 ### 3. `packages/sdk` (`@stellar-bazaar/sdk`)
+
 Standalone TypeScript developer SDK for building dApps, automated merchant quoting bots, and wholesale group-buying extensions.
+
 - Includes `StellarBazaarClient`, `TransactionBuilder`, `EventWatcher` (Soroban RPC cursor polling), and BigInt stroop converters.
 
 ### 4. `crates/bazaar_indexer`
+
 Relational event ingestion engine with SQLite/Postgres persistence, Prometheus metrics (`/metrics`), health checks (`/health`), and 10 REST endpoints (`/api/v1/circles`, `/api/v1/disputes`, `/api/v1/top-sellers`, etc.).
 
 ### 5. `crates/bazaar_math`
+
 Lossless mathematical crate enforcing 7-decimal stroop conversions, surplus rebate arithmetic, and fee basis points boundaries.
 
 ---
@@ -121,18 +129,20 @@ Lossless mathematical crate enforcing 7-decimal stroop conversions, surplus reba
 
 Stellar Bazaar boasts **324 passing automated tests** across all repositories and sub-packages:
 
-| Test Suite | Passing Tests | Language / Framework | Scope |
-| :--- | :--- | :--- | :--- |
-| `bazaar_deal_engine` | 34 tests | Rust (Soroban Host Testutils) | Quorum, Escrow, Disputes, SAC, Surplus Rebates |
-| `demand_circle_registry` | 7 tests | Rust (Soroban Host Testutils) | Constraints, Boundaries, Authority Guards |
-| `bazaar_indexer` | 30 tests | Rust (Unit + Integration) | Checkpoints, Relational SQLite, REST API, Prometheus |
-| `bazaar_math` | 6 tests | Rust | Lossless Stroop & Rebate Arithmetic |
-| `@stellar-bazaar/sdk` | 19 tests | TypeScript (Vitest) | Invocations, Fee Budgeting, Event Watcher, Error Map |
-| `stellar-bazaar-frontend` | 228 tests | TypeScript (Vitest 56 files) | React Components, Wallet State, Horizon Polling |
-| **Total Verified Tests** | **324 tests** | **100% Green** | **Zero Failures, Zero Linter Warnings** |
+| Test Suite                | Passing Tests | Language / Framework          | Scope                                                |
+| :------------------------ | :------------ | :---------------------------- | :--------------------------------------------------- |
+| `bazaar_deal_engine`      | 34 tests      | Rust (Soroban Host Testutils) | Quorum, Escrow, Disputes, SAC, Surplus Rebates       |
+| `demand_circle_registry`  | 7 tests       | Rust (Soroban Host Testutils) | Constraints, Boundaries, Authority Guards            |
+| `bazaar_indexer`          | 30 tests      | Rust (Unit + Integration)     | Checkpoints, Relational SQLite, REST API, Prometheus |
+| `bazaar_math`             | 6 tests       | Rust                          | Lossless Stroop & Rebate Arithmetic                  |
+| `@stellar-bazaar/sdk`     | 19 tests      | TypeScript (Vitest)           | Invocations, Fee Budgeting, Event Watcher, Error Map |
+| `stellar-bazaar-frontend` | 228 tests     | TypeScript (Vitest 56 files)  | React Components, Wallet State, Horizon Polling      |
+| **Total Verified Tests**  | **324 tests** | **100% Green**                | **Zero Failures, Zero Linter Warnings**              |
 
 ### Automated End-to-End Simulation
+
 Run the full cooperative deal lifecycle simulation with a single command:
+
 ```bash
 make simulate-e2e
 ```
@@ -142,33 +152,39 @@ make simulate-e2e
 ## Getting Started Locally
 
 ### Prerequisites
+
 - **Rust 1.80+** with `wasm32-unknown-unknown` target (`rustup target add wasm32-unknown-unknown`)
 - **Node.js 20+** and **npm** or **pnpm**
 - **Stellar CLI** (Protocol 22 compatible)
 
 ### 1. Run Workspace Test Suite
+
 ```bash
 cargo test --workspace
 ```
 
 ### 2. Lint and Format Verification
+
 ```bash
 cargo clippy --workspace --all-targets -- -D warnings
 cargo fmt --all -- --check
 ```
 
 ### 3. Build WebAssembly Contracts
+
 ```bash
 cargo rustc -p demand-circle-registry --target wasm32-unknown-unknown --release --crate-type=cdylib
 cargo rustc -p bazaar-deal-engine --target wasm32-unknown-unknown --release --crate-type=cdylib
 ```
 
 ### 4. Run Event Indexer Daemon
+
 ```bash
 cargo run -p bazaar-indexer
 ```
 
 ### 5. Build and Test Developer SDK
+
 ```bash
 cd packages/sdk
 npm install
@@ -182,19 +198,19 @@ npm run build
 
 Genuine screenshots captured from development tools and running application:
 
-| Screenshot | Description | File Link |
-| :--- | :--- | :--- |
-| **01** | Responsive Desktop Marketplace | [`01_responsive_desktop_marketplace.png`](docs/screenshots/01_responsive_desktop_marketplace.png) |
-| **02** | Responsive Mobile Interface | [`02_responsive_mobile_interface.png`](docs/screenshots/02_responsive_mobile_interface.png) |
-| **03** | Wallet Options & Connected State | [`03_wallet_options_and_connected.png`](docs/screenshots/03_wallet_options_and_connected.png) |
-| **04** | Demand Circle Creation & Live Progress | [`04_demand_circle_creation_and_progress.png`](docs/screenshots/04_demand_circle_creation_and_progress.png) |
-| **05** | Competing Seller Offers Table | [`05_competing_seller_offers.png`](docs/screenshots/05_competing_seller_offers.png) |
-| **06** | Real Accepted Offer & Contract Interaction | [`06_real_accepted_offer_interaction.png`](docs/screenshots/06_real_accepted_offer_interaction.png) |
-| **07** | Successful Settlement & Escrow Release | [`07_successful_settlement_escrow.png`](docs/screenshots/07_successful_settlement_escrow.png) |
-| **08** | Failed Deal & Refund Protection Flow | [`08_failed_deal_and_refund_outcome.png`](docs/screenshots/08_failed_deal_and_refund_outcome.png) |
-| **09** | Deployed Contract IDs & Verified Hashes | [`09_deployed_contract_and_tx_hash.png`](docs/screenshots/09_deployed_contract_and_tx_hash.png) |
-| **10** | Running CI/CD Automation Workflow | [`10_running_ci_workflow.png`](docs/screenshots/10_running_ci_workflow.png) |
-| **11** | Automated Test Output (319 System Tests Verified) | [`11_automated_test_output.png`](docs/screenshots/11_automated_test_output.png) |
+| Screenshot | Description                                       | File Link                                                                                                   |
+| :--------- | :------------------------------------------------ | :---------------------------------------------------------------------------------------------------------- |
+| **01**     | Responsive Desktop Marketplace                    | [`01_responsive_desktop_marketplace.png`](docs/screenshots/01_responsive_desktop_marketplace.png)           |
+| **02**     | Responsive Mobile Interface                       | [`02_responsive_mobile_interface.png`](docs/screenshots/02_responsive_mobile_interface.png)                 |
+| **03**     | Wallet Options & Connected State                  | [`03_wallet_options_and_connected.png`](docs/screenshots/03_wallet_options_and_connected.png)               |
+| **04**     | Demand Circle Creation & Live Progress            | [`04_demand_circle_creation_and_progress.png`](docs/screenshots/04_demand_circle_creation_and_progress.png) |
+| **05**     | Competing Seller Offers Table                     | [`05_competing_seller_offers.png`](docs/screenshots/05_competing_seller_offers.png)                         |
+| **06**     | Real Accepted Offer & Contract Interaction        | [`06_real_accepted_offer_interaction.png`](docs/screenshots/06_real_accepted_offer_interaction.png)         |
+| **07**     | Successful Settlement & Escrow Release            | [`07_successful_settlement_escrow.png`](docs/screenshots/07_successful_settlement_escrow.png)               |
+| **08**     | Failed Deal & Refund Protection Flow              | [`08_failed_deal_and_refund_outcome.png`](docs/screenshots/08_failed_deal_and_refund_outcome.png)           |
+| **09**     | Deployed Contract IDs & Verified Hashes           | [`09_deployed_contract_and_tx_hash.png`](docs/screenshots/09_deployed_contract_and_tx_hash.png)             |
+| **10**     | Running CI/CD Automation Workflow                 | [`10_running_ci_workflow.png`](docs/screenshots/10_running_ci_workflow.png)                                 |
+| **11**     | Automated Test Output (319 System Tests Verified) | [`11_automated_test_output.png`](docs/screenshots/11_automated_test_output.png)                             |
 
 ---
 

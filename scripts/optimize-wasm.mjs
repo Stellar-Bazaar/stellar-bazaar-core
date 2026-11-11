@@ -6,15 +6,37 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Import binaryen from frontend node_modules
-const binaryenPath = path.resolve(__dirname, '..', '..', 'stellar-bazaar-frontend', 'node_modules', 'binaryen', 'index.js');
+const binaryenPath = path.resolve(
+  __dirname,
+  '..',
+  '..',
+  'stellar-bazaar-frontend',
+  'node_modules',
+  'binaryen',
+  'index.js'
+);
 const binaryenModule = await import(`file://${binaryenPath.replace(/\\/g, '/')}`);
 const binaryen = binaryenModule.default || binaryenModule;
 
 const contracts = ['demand_circle_registry', 'bazaar_deal_engine'];
 
 for (const name of contracts) {
-  const inputWasmPath = path.resolve(__dirname, '..', 'target', 'wasm32-unknown-unknown', 'release', `${name}.wasm`);
-  const outputWasmPath = path.resolve(__dirname, '..', 'target', 'wasm32-unknown-unknown', 'release', `${name}.optimized.wasm`);
+  const inputWasmPath = path.resolve(
+    __dirname,
+    '..',
+    'target',
+    'wasm32-unknown-unknown',
+    'release',
+    `${name}.wasm`
+  );
+  const outputWasmPath = path.resolve(
+    __dirname,
+    '..',
+    'target',
+    'wasm32-unknown-unknown',
+    'release',
+    `${name}.optimized.wasm`
+  );
 
   if (!fs.existsSync(inputWasmPath)) {
     console.log(`Skipping ${name}: file not found at ${inputWasmPath}`);

@@ -21,12 +21,12 @@ stateDiagram-v2
 
 ## 2. States & Roles
 
-| State | Allowed Actors | Permitted Operations |
-|---|---|---|
-| **Inspection** | Circle Creator | `confirm_inspection_and_settle` releases escrow payout to seller. |
-| **Inspection** | Creator & Committed Buyers | `dispute_deal(circle_id, reason)` opens formal arbitration. |
-| **Disputed** | Protocol Admin | `resolve_dispute(circle_id, refund_to_buyers)` arbitrates. |
-| **Cancelled** | Committed Buyers | `claim_refund(circle_id)` reclaims 100% of committed capital. |
+| State          | Allowed Actors             | Permitted Operations                                              |
+| -------------- | -------------------------- | ----------------------------------------------------------------- |
+| **Inspection** | Circle Creator             | `confirm_inspection_and_settle` releases escrow payout to seller. |
+| **Inspection** | Creator & Committed Buyers | `dispute_deal(circle_id, reason)` opens formal arbitration.       |
+| **Disputed**   | Protocol Admin             | `resolve_dispute(circle_id, refund_to_buyers)` arbitrates.        |
+| **Cancelled**  | Committed Buyers           | `claim_refund(circle_id)` reclaims 100% of committed capital.     |
 
 ---
 

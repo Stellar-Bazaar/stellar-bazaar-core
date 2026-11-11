@@ -68,7 +68,8 @@ export const CONTRACT_ERROR_MAP: Record<number, ContractErrorInfo> = {
   },
   8: {
     name: 'CeilingPriceExceeded',
-    description: 'Seller offer unit price exceeds the maximum ceiling price specified by the circle.',
+    description:
+      'Seller offer unit price exceeds the maximum ceiling price specified by the circle.',
     remediation: 'Submit an offer at or below the maximum price.',
   },
   9: {
@@ -177,8 +178,10 @@ export class SorobanContractError extends StellarBazaarError {
     const info = CONTRACT_ERROR_MAP[code];
     const name = info ? info.name : `UnknownError${code}`;
     const desc = info ? info.description : `Unrecognized contract error code ${code}`;
-    const remediation = info ? info.remediation : 'Check contract ledger logs and transaction simulation.';
-    
+    const remediation = info
+      ? info.remediation
+      : 'Check contract ledger logs and transaction simulation.';
+
     super(`Soroban Contract Error #${code} [${name}]: ${desc}`);
     this.name = 'SorobanContractError';
     this.code = code;
@@ -190,4 +193,3 @@ export class SorobanContractError extends StellarBazaarError {
 export function resolveContractError(code: number): SorobanContractError {
   return new SorobanContractError(code);
 }
-

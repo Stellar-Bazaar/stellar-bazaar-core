@@ -40,6 +40,7 @@ The `bazaar-indexer` daemon provides continuous, low-latency indexing of Soroban
 ```
 
 ### Components
+
 1. **RPC Polling Loop**: Repeatedly queries `getEvents` for designated contract addresses starting from the last ingested ledger sequence checkpoint.
 2. **Exponential Backoff**: If the Soroban RPC endpoint experiences rate-limiting, network partitions, or 503 timeouts, backoff doubles with each consecutive failure up to a strict cap of 30 seconds (`2^min(errors, 5) * base_interval`), preventing RPC spamming while ensuring prompt recovery.
 3. **Event Decoder**: Decodes Soroban ScVal event topics into typed Rust events (`DemandCircleCreated`, `CommitmentAdded`, `OfferProposed`, `OfferAccepted`, `InspectionInitiated`, `SettlementCompleted`, `DisputeOpened`, `DisputeResolved`).
@@ -52,33 +53,37 @@ The `bazaar-indexer` daemon provides continuous, low-latency indexing of Soroban
 
 Configuration can be specified via command-line flags or the `.env.indexer` template:
 
-| Parameter | CLI Flag | Default | Description |
-|---|---|---|---|
-| Database Path | `--db <path>` | `bazaar_indexer.db` | Path to SQLite file (`:memory:` for ephemeral mode) |
-| Soroban RPC URL | `--rpc <url>` | `https://soroban-testnet.stellar.org` | Soroban JSON-RPC 2.0 endpoint |
-| Contract ID | `--contract <id>` | Default Testnet IDs | Contract addresses to filter events for |
-| Batch Size | `--batch-size <num>` | `100` | Max events per RPC request |
-| Start Ledger | `--start-ledger <seq>` | `None` (Checkpoint) | Ledger sequence to initiate replay from |
-| Health Probe | `--health` | N/A | Evaluates daemon state and outputs JSON |
-| Metrics Exporter | `--metrics` | N/A | Renders Prometheus text exposition format |
-| Dry Run | `--dry-run` | N/A | Validates database connectivity and config without starting polling loop |
+| Parameter        | CLI Flag               | Default                               | Description                                                              |
+| ---------------- | ---------------------- | ------------------------------------- | ------------------------------------------------------------------------ |
+| Database Path    | `--db <path>`          | `bazaar_indexer.db`                   | Path to SQLite file (`:memory:` for ephemeral mode)                      |
+| Soroban RPC URL  | `--rpc <url>`          | `https://soroban-testnet.stellar.org` | Soroban JSON-RPC 2.0 endpoint                                            |
+| Contract ID      | `--contract <id>`      | Default Testnet IDs                   | Contract addresses to filter events for                                  |
+| Batch Size       | `--batch-size <num>`   | `100`                                 | Max events per RPC request                                               |
+| Start Ledger     | `--start-ledger <seq>` | `None` (Checkpoint)                   | Ledger sequence to initiate replay from                                  |
+| Health Probe     | `--health`             | N/A                                   | Evaluates daemon state and outputs JSON                                  |
+| Metrics Exporter | `--metrics`            | N/A                                   | Renders Prometheus text exposition format                                |
+| Dry Run          | `--dry-run`            | N/A                                   | Validates database connectivity and config without starting polling loop |
 
 ---
 
 ## 3. Operational Runbook
 
 ### Running Dry-Run Verification
+
 To verify database schemas and configuration without connecting to live nodes:
+
 ```bash
 cargo run -p bazaar-indexer -- --dry-run --db :memory:
 ```
 
 ### Running with PowerShell Helper
+
 ```powershell
 .\scripts\run_indexer.ps1 -DryRun -DatabasePath :memory:
 ```
 
 ### Running Test Suite
+
 ```bash
 make indexer-test
 # or
@@ -86,6 +91,7 @@ cargo test -p bazaar-indexer
 ```
 
 ### Running Verification Script
+
 ```powershell
 .\scripts\verify_indexer.ps1
 ```
@@ -95,7 +101,9 @@ cargo test -p bazaar-indexer
 ## 4. Observability & Monitoring
 
 ### Health Probe
+
 Running the daemon with `--health` evaluates operational vitality:
+
 ```json
 {
   "status": "healthy",
@@ -110,12 +118,15 @@ Running the daemon with `--health` evaluates operational vitality:
 ```
 
 Health status transitions:
+
 - `syncing`: Fresh daemon startup before initial ledger synchronization.
 - `healthy`: Active ledger ingestion with fewer than 5 consecutive transient errors.
 - `degraded`: 5 or more consecutive RPC errors requiring alert escalation.
 
 ### Prometheus Metrics
+
 The daemon exposes standard Prometheus format metrics via `--metrics`:
+
 - `bazaar_indexer_latest_ledger`: Gauge of latest processed ledger.
 - `bazaar_indexer_events_total`: Counter of all contract events ingested.
 - `bazaar_indexer_circles_total`: Counter of demand circles indexed.

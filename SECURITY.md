@@ -7,6 +7,7 @@ This document outlines the security architecture, threat model, trust boundaries
 ## 1. Architectural Trust Boundaries & Overview
 
 Stellar Bazaar operates across three distinct security domains:
+
 1. **On-Chain Soroban Execution Layer**: Authoritative state, escrow custody, quorum qualification, and deterministic state transitions.
 2. **Indexing & Application Service Layer**: Off-chain ledger ingestion, projection caching, query acceleration, and notification indexing.
 3. **Client / Browser Domain**: User interface, wallet key management (Freighter, xBull, Hana, Albedo), and transaction assembly.
@@ -41,6 +42,7 @@ Stellar Bazaar operates across three distinct security domains:
 ## 2. Comprehensive Threat Matrix & Mitigations
 
 ### 2.1 Unauthorized Access and Contract Calls
+
 - **Threat**: Malicious actors invoking privileged endpoints (e.g. canceling circles, claiming others' refunds, settling deals without authorization).
 - **Mitigation**:
   - Strict Soroban `require_auth()` checks on every mutating function.
@@ -49,6 +51,7 @@ Stellar Bazaar operates across three distinct security domains:
   - Seller authentication: `seller.require_auth()` prevents unauthorized quotes on behalf of arbitrary addresses.
 
 ### 2.2 Duplicate Transactions & Replay-Like Behavior
+
 - **Threat**: Replaying signed commitment transactions or attempting duplicate participation to manipulate volume.
 - **Mitigation**:
   - Stellar accounts employ incrementing sequence numbers enforced at the consensus layer, rendering transaction replays invalid.
@@ -56,6 +59,7 @@ Stellar Bazaar operates across three distinct security domains:
   - The contract strictly asserts that the buyer does not already have an active commitment in the circle (`Error::AlreadyCommitted`).
 
 ### 2.3 Incorrect Deadline or Threshold Evaluation
+
 - **Threat**: Late commitments accepted after expiry; premature settlement before quorum or before expiration.
 - **Mitigation**:
   - All time checks evaluate against authoritative Soroban host time: `env.ledger().timestamp()`.
@@ -64,6 +68,7 @@ Stellar Bazaar operates across three distinct security domains:
   - Quorum threshold evaluation: `settle_deal` strictly verifies `circle.current_volume >= circle.min_volume` (`Error::QuorumNotReached`).
 
 ### 2.4 Double Spending, Double Release, and Double Refund
+
 - **Threat**: Withdrawing escrowed capital multiple times; claiming a refund after settlement.
 - **Mitigation**:
   - Atomic state transitions: `Commitment.refunded` is set to `true` prior to or atomically with the token transfer.
@@ -71,6 +76,7 @@ Stellar Bazaar operates across three distinct security domains:
   - Deal settlement transitions `circle.status` to `CircleStatus::Settled`. Once settled, `claim_refund` unconditionally rejects withdrawal attempts.
 
 ### 2.5 Malicious or Expired Seller Offers
+
 - **Threat**: Sellers submitting offers exceeding buyer budget constraints or failing to deliver.
 - **Mitigation**:
   - `submit_seller_offer` validates `unit_price <= circle.target_unit_price` (`Error::PriceExceedsTarget`).
@@ -78,18 +84,21 @@ Stellar Bazaar operates across three distinct security domains:
   - Immutable accepted terms: Once accepted by the creator, commercial terms cannot be mutated unilaterally.
 
 ### 2.6 Invalid Asset Configuration
+
 - **Threat**: Callers supplying spoofed token contract addresses or unbacked mock tokens.
 - **Mitigation**:
   - The protocol uses the Stellar Asset Contract (SAC) for native XLM (`CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC` on Testnet).
   - Cross-contract deal registration (`create_deal_from_registry`) binds asset addresses to verified on-chain deployments.
 
 ### 2.7 Reentrancy & Cross-Contract Risk
+
 - **Threat**: External contract callbacks attempting reentrant state manipulation.
 - **Mitigation**:
   - The Soroban runtime execution model prohibits arbitrary reentrancy.
   - Follows Checks-Effects-Interactions: Storage mutations and status transitions precede external token client transfers.
 
 ### 2.8 Administrative, Dispute & Fee Bounds
+
 - **Threat**: Centralized administrators arbitrarily seizing escrow funds, raising fees extortionately, or unfair dispute arbitrations.
 - **Mitigation**:
   - Minimal trusted authority: Contract administrator cannot withdraw escrow capital or modify winning payout parameters.
@@ -98,18 +107,21 @@ Stellar Bazaar operates across three distinct security domains:
   - Programmatic escrow flows: Escrow is released strictly to the winning seller (less verified protocol fees), or refunded back to buyers on dispute / failure.
 
 ### 2.9 Indexer Outages and Stale Backend State
+
 - **Threat**: Frontend showing stale or out-of-sync state due to indexer lag.
 - **Mitigation**:
   - The frontend reads critical financial state directly from the authoritative Soroban contract RPC (`get_circle`, `get_offer`).
   - Event indexers maintain explicit checkpoints (`indexer_checkpoints` table with `last_processed_ledger`) and process events idempotently.
 
 ### 2.10 Frontend Transaction Spoofing
+
 - **Threat**: Malicious client-side tampering attempting to broadcast unsigned transactions.
 - **Mitigation**:
   - Transactions are simulated against the Soroban RPC before presentation to the user's wallet for signature.
   - The wallet displays full transaction details (destination address, function arguments, resource fees) before user confirmation.
 
 ### 2.11 Private Key, Wallet, and Secret Hygiene
+
 - **Threat**: Secret leakage in logs, repository commits, or client-side bundles.
 - **Mitigation**:
   - No private keys or secrets are committed or included in client code.
@@ -121,21 +133,25 @@ Stellar Bazaar operates across three distinct security domains:
 ## 3. Incident Response & Responsible Disclosure
 
 ### 3.1 Supported Component Versions
-| Component | Supported Version | Status |
-| :--- | :--- | :--- |
-| `bazaar_deal_engine` (Soroban) | `>= 0.1.0` (Latest `main`) | :white_check_mark: Supported |
+
+| Component                          | Supported Version          | Status                       |
+| :--------------------------------- | :------------------------- | :--------------------------- |
+| `bazaar_deal_engine` (Soroban)     | `>= 0.1.0` (Latest `main`) | :white_check_mark: Supported |
 | `demand_circle_registry` (Soroban) | `>= 0.1.0` (Latest `main`) | :white_check_mark: Supported |
-| `bazaar_math` | `>= 0.1.0` (Latest `main`) | :white_check_mark: Supported |
-| `bazaar-indexer` | `>= 0.1.0` (Latest `main`) | :white_check_mark: Supported |
-| `@stellar-bazaar/sdk` | `>= 0.1.0` (Latest `main`) | :white_check_mark: Supported |
+| `bazaar_math`                      | `>= 0.1.0` (Latest `main`) | :white_check_mark: Supported |
+| `bazaar-indexer`                   | `>= 0.1.0` (Latest `main`) | :white_check_mark: Supported |
+| `@stellar-bazaar/sdk`              | `>= 0.1.0` (Latest `main`) | :white_check_mark: Supported |
 
 ### 3.2 Reporting Channels & Response SLA
+
 To report a security vulnerability or anomalous contract execution:
+
 - Contact: `security@stellarbazaar.io`
 - PGP Fingerprint: `E4F2 91A8 BC03 7261 9A02 44BF C109 82E1 7D02 3B41`
 - Include: Detailed reproduction steps, transaction hashes, and affected contract addresses.
 
 Response SLA:
+
 - **Acknowledgement**: Within 24 hours.
 - **Triage & Reproduction**: Within 48 hours.
 - **Remediation & Patch Deployment**: Within 7 business days depending on severity.

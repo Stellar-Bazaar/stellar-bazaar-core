@@ -49,6 +49,7 @@ To build, test, and develop within this repository, install the following:
 ## 4. Coding & Architecture Guidelines
 
 ### Smart Contract Development (`contracts/`)
+
 - **Protocol Version**: We target Stellar Soroban **Protocol 22**.
 - **Deterministic Execution**: Avoid non-deterministic logic, unvetted external crates, or floating-point calculations. Always use integer arithmetic with explicit stroop scaling (`1 XLM = 10,000,000 stroops`).
 - **Authorization**: Mutating functions must enforce strict `require_auth()` verification on caller accounts.
@@ -56,11 +57,13 @@ To build, test, and develop within this repository, install the following:
 - **Storage Strategy**: Group related deal and circle state cleanly using typed keys (`DataKey`).
 
 ### TypeScript SDK Development (`packages/sdk/`)
+
 - Ensure all token amount utilities use lossless BigInt stroops.
 - Run SDK tests via `npm test` or `make sdk-test`.
 - Run strict TypeScript compile verification via `npx tsc --noEmit`.
 
 ### Indexer & REST API Tooling (`crates/bazaar_indexer/`)
+
 - Ensure ledger ingestion is replay-safe and idempotent with SQLite/Postgres checkpointing.
 - Checkpoints should be committed atomically alongside database transactions.
 - Run indexer API tests via `make indexer-test`.
@@ -88,6 +91,7 @@ cargo test --workspace
 ## 6. Commit Message Guidelines
 
 We use conventional commit messages to maintain a clean git history:
+
 - `feat: add escrow milestone releases`
 - `fix: handle edge case in circle expiration timestamp`
 - `docs: update testnet explorer verification links`

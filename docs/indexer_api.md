@@ -7,6 +7,7 @@ The `bazaar-indexer` includes a high-performance, embedded HTTP REST API server 
 ## 1. Server Configuration & Invocation
 
 Launch the embedded HTTP server:
+
 ```bash
 cargo run -p bazaar-indexer -- --serve --port 8088 --db ./bazaar_indexer.db
 ```
@@ -20,8 +21,11 @@ Default Base URL: `http://localhost:8088`
 ### 2.1 System & Telemetry
 
 #### `GET /health`
+
 Returns JSON health assessment, daemon uptime, and Soroban synchronization metrics.
+
 - **Response 200 OK**:
+
 ```json
 {
   "status": "healthy",
@@ -36,8 +40,11 @@ Returns JSON health assessment, daemon uptime, and Soroban synchronization metri
 ```
 
 #### `GET /metrics`
+
 Exposes live Prometheus-compatible text format metrics for monitoring.
+
 - **Response 200 OK** (`Content-Type: text/plain`):
+
 ```
 # HELP bazaar_indexer_latest_ledger Latest processed Soroban ledger sequence
 # TYPE bazaar_indexer_latest_ledger gauge
@@ -49,8 +56,11 @@ bazaar_indexer_latest_ledger 142050
 ### 2.2 Demand Circles
 
 #### `GET /api/v1/circles`
+
 Returns all active demand circles eligible for buyer commitments or seller proposals (`OPEN`, `QUORUM_REACHED`, `INSPECTION`).
+
 - **Response 200 OK**:
+
 ```json
 [
   {
@@ -69,13 +79,18 @@ Returns all active demand circles eligible for buyer commitments or seller propo
 ```
 
 #### `GET /api/v1/circles/{id}`
+
 Returns granular metadata and volume progress for a single demand circle.
+
 - **Response 200 OK**: Single circle object.
 - **Response 404 Not Found**: `{"error": "Demand circle '{id}' not found", "code": 404}`
 
 #### `GET /api/v1/circles/{id}/commitments`
+
 Lists all buyer commitments pledged to a specific circle.
+
 - **Response 200 OK**:
+
 ```json
 [
   {
@@ -91,8 +106,11 @@ Lists all buyer commitments pledged to a specific circle.
 ```
 
 #### `GET /api/v1/circles/{id}/offers`
+
 Lists all competitive proposals submitted by sellers for a circle.
+
 - **Response 200 OK**:
+
 ```json
 [
   {
@@ -108,8 +126,11 @@ Lists all competitive proposals submitted by sellers for a circle.
 ```
 
 #### `GET /api/v1/circles/{id}/disputes`
+
 Lists arbitration and dispute escalation records opened against a circle.
+
 - **Response 200 OK**:
+
 ```json
 [
   {
@@ -130,8 +151,11 @@ Lists arbitration and dispute escalation records opened against a circle.
 ### 2.3 Sellers & Reputation
 
 #### `GET /api/v1/sellers/top`
+
 Returns seller leaderboard ranked by completed deals and fulfillment volume.
+
 - **Response 200 OK**:
+
 ```json
 [
   {
@@ -146,7 +170,9 @@ Returns seller leaderboard ranked by completed deals and fulfillment volume.
 ```
 
 #### `GET /api/v1/sellers/{seller}/reputation`
+
 Returns historical track record for a specific seller address.
+
 - **Response 200 OK**: Single reputation object.
 - **Response 404 Not Found**: `{"error": "Seller reputation for '{seller}' not found", "code": 404}`
 
@@ -155,8 +181,11 @@ Returns historical track record for a specific seller address.
 ### 2.4 Indexer State
 
 #### `GET /api/v1/checkpoint`
+
 Returns the highest ledger sequence indexed by the daemon.
+
 - **Response 200 OK**:
+
 ```json
 {
   "last_ledger": 142050
@@ -168,10 +197,12 @@ Returns the highest ledger sequence indexed by the daemon.
 ## 3. Cross-Origin Resource Sharing (CORS)
 
 All responses include permissive CORS headers enabling seamless communication with web frontends:
+
 ```http
 Access-Control-Allow-Origin: *
 Access-Control-Allow-Methods: GET, POST, OPTIONS, HEAD
 Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With
 Access-Control-Max-Age: 86400
 ```
+
 Preflight `OPTIONS` requests automatically return `204 No Content`.

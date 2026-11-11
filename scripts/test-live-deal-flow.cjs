@@ -1,7 +1,14 @@
 const fs = require('fs');
 const path = require('path');
 
-const sdkPath = path.resolve(__dirname, '..', '..', 'stellar-bazaar-frontend', 'node_modules', '@stellar/stellar-sdk');
+const sdkPath = path.resolve(
+  __dirname,
+  '..',
+  '..',
+  'stellar-bazaar-frontend',
+  'node_modules',
+  '@stellar/stellar-sdk'
+);
 const {
   rpc,
   Networks,
@@ -24,7 +31,8 @@ async function waitForTx(server, hash, maxAttempts = 35) {
   for (let i = 0; i < maxAttempts; i++) {
     const res = await server.getTransaction(hash);
     if (res.status === 'SUCCESS') return res;
-    if (res.status === 'FAILED') throw new Error(`Transaction ${hash} failed: ${JSON.stringify(res)}`);
+    if (res.status === 'FAILED')
+      throw new Error(`Transaction ${hash} failed: ${JSON.stringify(res)}`);
     await sleep(2000);
   }
   throw new Error(`Transaction ${hash} timed out`);
@@ -36,7 +44,9 @@ async function main() {
 
   const deployerPath = path.resolve(__dirname, '..', '.deployer.json');
   const deployer = Keypair.fromSecret(JSON.parse(fs.readFileSync(deployerPath, 'utf8')).secret);
-  const deployment = JSON.parse(fs.readFileSync(path.resolve(__dirname, '..', 'deployments', 'testnet.json'), 'utf8'));
+  const deployment = JSON.parse(
+    fs.readFileSync(path.resolve(__dirname, '..', 'deployments', 'testnet.json'), 'utf8')
+  );
 
   const dealEngineId = deployment.dealEngine.contractId;
   console.log(`Bazaar Deal Engine: ${dealEngineId}`);
@@ -107,13 +117,19 @@ async function main() {
     .build();
   const sim = await server.simulateTransaction(queryTx);
   const circleState = scValToNative(sim.result.retval);
-  console.log('On-chain Deal State:', JSON.stringify(circleState, (k, v) => typeof v === 'bigint' ? v.toString() : v, 2));
+  console.log(
+    'On-chain Deal State:',
+    JSON.stringify(circleState, (k, v) => (typeof v === 'bigint' ? v.toString() : v), 2)
+  );
 
   // Save hashes to testnet.json
   deployment.dealEngine.liveOfferTxHash = offerSend.hash;
   deployment.dealEngine.liveOfferId = offerId;
   deployment.dealEngine.liveCommitTxHash = commitSend.hash;
-  fs.writeFileSync(path.resolve(__dirname, '..', 'deployments', 'testnet.json'), JSON.stringify(deployment, null, 2));
+  fs.writeFileSync(
+    path.resolve(__dirname, '..', 'deployments', 'testnet.json'),
+    JSON.stringify(deployment, null, 2)
+  );
   console.log('Updated deployments/testnet.json with live offer & commit hashes');
 }
 

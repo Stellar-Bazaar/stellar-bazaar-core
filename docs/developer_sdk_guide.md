@@ -131,7 +131,7 @@ async function checkAndClaimRebate(circleId: number, buyerAddress: string) {
 
   if (commitment && !commitment.rebateClaimed) {
     const winningOfferPrice = 45_000_000n; // 4.5 XLM
-    const ceilingPrice = 50_000_000n;     // 5.0 XLM
+    const ceilingPrice = 50_000_000n; // 5.0 XLM
 
     const rebateStroops = calculateMaxBuyerSavingsStroops(
       ceilingPrice,
@@ -155,4 +155,3 @@ async function checkAndClaimRebate(circleId: number, buyerAddress: string) {
 2. **Handle Soroban RPC rate limits**: Set `pollIntervalMs` to $\ge 2000$ ms for public endpoints.
 3. **Simulate before signing**: Always parse simulation responses to check CPU/RAM footprints and ensure authorization entries match the sender.
 4. **Inspect contract error codes**: Catch `SorobanContractError` to display specific remediation actions to end users.
-

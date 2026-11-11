@@ -27,6 +27,7 @@ docker run --rm -it \
 ```
 
 ### Key Endpoints
+
 - **Horizon API**: `http://localhost:8000`
 - **Soroban RPC**: `http://localhost:8000/soroban/rpc`
 - **Network Passphrase**: `Standalone Network ; February 2017`
@@ -103,6 +104,7 @@ stellar contract invoke \
 ## 5. Local Automated Testing Script
 
 For one-command test execution against local node, run:
+
 ```powershell
 powershell -ExecutionPolicy Bypass -File ./scripts/setup_test_validator.ps1
 ```

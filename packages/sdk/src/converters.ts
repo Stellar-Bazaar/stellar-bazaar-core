@@ -27,10 +27,7 @@ export function toStroops(amount: string | number): bigint {
 /**
  * Converts integer stroops to human-readable decimal string.
  */
-export function fromStroops(
-  stroops: bigint,
-  options: { maxDecimals?: number } = {}
-): string {
+export function fromStroops(stroops: bigint, options: { maxDecimals?: number } = {}): string {
   const isNegative = stroops < 0n;
   const abs = isNegative ? -stroops : stroops;
 
@@ -74,4 +71,3 @@ export function calculateRebate(
   const delta = targetPriceStroops - acceptedPriceStroops;
   return delta * BigInt(units);
 }
-

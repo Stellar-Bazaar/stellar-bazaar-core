@@ -3,7 +3,14 @@ const path = require('path');
 const crypto = require('crypto');
 
 // Resolve stellar-sdk from workspace
-const sdkPath = path.resolve(__dirname, '..', '..', 'stellar-bazaar-frontend', 'node_modules', '@stellar/stellar-sdk');
+const sdkPath = path.resolve(
+  __dirname,
+  '..',
+  '..',
+  'stellar-bazaar-frontend',
+  'node_modules',
+  '@stellar/stellar-sdk'
+);
 const {
   rpc,
   Networks,
@@ -49,9 +56,12 @@ async function fundAccount(publicKey) {
   console.log(`Funding account ${publicKey} via Friendbot...`);
   for (let attempt = 1; attempt <= 10; attempt++) {
     try {
-      const res = await fetch(`https://friendbot.stellar.org?addr=${encodeURIComponent(publicKey)}`, {
-        signal: AbortSignal.timeout(30000),
-      });
+      const res = await fetch(
+        `https://friendbot.stellar.org?addr=${encodeURIComponent(publicKey)}`,
+        {
+          signal: AbortSignal.timeout(30000),
+        }
+      );
       if (res.ok) {
         console.log('Account funded successfully!');
         return;
@@ -153,7 +163,10 @@ async function main() {
     const installed = await checkWasmInstalled(server, wasmHashHex);
     if (!installed) {
       let account = await server.getAccount(deployer.publicKey());
-      const uploadTx = new TransactionBuilder(account, { fee: '100', networkPassphrase: PASSPHRASE })
+      const uploadTx = new TransactionBuilder(account, {
+        fee: '100',
+        networkPassphrase: PASSPHRASE,
+      })
         .addOperation(Operation.uploadContractWasm({ wasm: wasmBytes }))
         .setTimeout(60)
         .build();
@@ -249,7 +262,9 @@ async function main() {
     const createRes = await waitForTx(server, createSend.hash);
     sampleCircleTxHash = createSend.hash;
     sampleCircleId = Number(scValToNative(createRes.returnValue));
-    console.log(`Initial Demand Circle #${sampleCircleId} created on-chain! Tx: ${sampleCircleTxHash}`);
+    console.log(
+      `Initial Demand Circle #${sampleCircleId} created on-chain! Tx: ${sampleCircleTxHash}`
+    );
   }
 
   // Read Circle 1
@@ -266,7 +281,9 @@ async function main() {
     .build();
   const readSim = await server.simulateTransaction(readTx);
   const circle1 = scValToNative(readSim.result.retval);
-  console.log(`Verified On-Chain Circle #1: "${circle1.title}" (Creator: ${circle1.creator}, Quantity: ${circle1.target_quantity})`);
+  console.log(
+    `Verified On-Chain Circle #1: "${circle1.title}" (Creator: ${circle1.creator}, Quantity: ${circle1.target_quantity})`
+  );
 
   // Save deployment record
   const deploymentRecord = {
@@ -293,18 +310,32 @@ async function main() {
   console.log(`\nDeployment record saved to: ${recordPath}`);
 
   // Sync to frontend config
-  const frontendConfigDir = path.resolve(__dirname, '..', '..', 'stellar-bazaar-frontend', 'src', 'config');
+  const frontendConfigDir = path.resolve(
+    __dirname,
+    '..',
+    '..',
+    'stellar-bazaar-frontend',
+    'src',
+    'config'
+  );
   if (!fs.existsSync(frontendConfigDir)) {
     fs.mkdirSync(frontendConfigDir, { recursive: true });
   }
-  fs.writeFileSync(path.join(frontendConfigDir, 'contract.json'), JSON.stringify(deploymentRecord, null, 2));
-  console.log(`Contract config synced to frontend: ${path.join(frontendConfigDir, 'contract.json')}`);
+  fs.writeFileSync(
+    path.join(frontendConfigDir, 'contract.json'),
+    JSON.stringify(deploymentRecord, null, 2)
+  );
+  console.log(
+    `Contract config synced to frontend: ${path.join(frontendConfigDir, 'contract.json')}`
+  );
 
   console.log('\n========================================');
   console.log('=== DEPLOYMENT AND VERIFICATION DONE ===');
   console.log(`Contract ID: ${contractId}`);
   console.log(`Explorer URL: ${deploymentRecord.explorerUrl}`);
-  console.log(`Verified Circle #1 Tx: https://stellar.expert/explorer/testnet/tx/${sampleCircleTxHash}`);
+  console.log(
+    `Verified Circle #1 Tx: https://stellar.expert/explorer/testnet/tx/${sampleCircleTxHash}`
+  );
   console.log('========================================');
 }
 

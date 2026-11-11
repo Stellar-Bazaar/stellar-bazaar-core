@@ -3,7 +3,14 @@ const path = require('path');
 const crypto = require('crypto');
 
 // Resolve stellar-sdk from workspace
-const sdkPath = path.resolve(__dirname, '..', '..', 'stellar-bazaar-frontend', 'node_modules', '@stellar/stellar-sdk');
+const sdkPath = path.resolve(
+  __dirname,
+  '..',
+  '..',
+  'stellar-bazaar-frontend',
+  'node_modules',
+  '@stellar/stellar-sdk'
+);
 const {
   rpc,
   Networks,
@@ -69,7 +76,9 @@ async function main() {
 
   const wasmBytes = fs.readFileSync(WASM_PATH);
   const wasmHashHex = crypto.createHash('sha256').update(wasmBytes).digest('hex');
-  console.log(`Loaded optimized Deal Engine WASM (${wasmBytes.length} bytes, SHA256: ${wasmHashHex})`);
+  console.log(
+    `Loaded optimized Deal Engine WASM (${wasmBytes.length} bytes, SHA256: ${wasmHashHex})`
+  );
 
   const server = new rpc.Server(RPC_URL);
 
@@ -151,7 +160,9 @@ async function main() {
   console.log(`Bazaar Deal Engine initialized in Tx: ${initTxHash}`);
 
   // 4. Test Cross-Contract Interaction: Register Deal from Registry Circle #1
-  console.log('\n--- Step 4: Testing Inter-Contract Invocation (Registry Circle #1 -> Deal Engine) ---');
+  console.log(
+    '\n--- Step 4: Testing Inter-Contract Invocation (Registry Circle #1 -> Deal Engine) ---'
+  );
   let crossContractTxHash = null;
   let dealId = null;
   try {

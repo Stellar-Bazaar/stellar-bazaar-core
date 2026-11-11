@@ -29,14 +29,7 @@ describe('StellarBazaarClient', () => {
     const creator = 'GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN';
     const token = 'CCFPZOCU33AWX2NKX47XD6W5JNYFP7MU57DTQFB5XOOQSJLSSC4PMX25';
 
-    const createTx = client.buildCreateCircleInvocation(
-      creator,
-      token,
-      10_000_000n,
-      10,
-      50,
-      86400
-    );
+    const createTx = client.buildCreateCircleInvocation(creator, token, 10_000_000n, 10, 50, 86400);
 
     expect(createTx.method).toBe('create_circle');
     expect(createTx.args[0]).toBe(creator);
@@ -52,4 +45,3 @@ describe('StellarBazaarClient', () => {
     expect(disputeTx.args[2]).toBe('Damaged');
   });
 });
-

@@ -8,16 +8,16 @@ The **Bazaar Indexer** crate provides event consumption, decoding, and persisten
 
 Contracts emit structured two-part topics with typed values:
 
-| Event Topic | Emitting Contract | Topic Filter | Data Payload (`ScVal`) |
-| :--- | :--- | :--- | :--- |
+| Event Topic      | Emitting Contract      | Topic Filter            | Data Payload (`ScVal`)                                       |
+| :--------------- | :--------------------- | :---------------------- | :----------------------------------------------------------- |
 | `circle:created` | `DemandCircleRegistry` | `("circle", "created")` | `(id: u64, creator: Address, qty: u32, price_stroops: i128)` |
-| `circle:closed` | `DemandCircleRegistry` | `("circle", "closed")` | `(circle_id: u64, caller: Address)` |
-| `circle:expired` | `DemandCircleRegistry` | `("circle", "expired")` | `(circle_id: u64)` |
-| `demand:commit` | `BazaarDealEngine` | `("demand", "commit")` | `(circle_id: u64, buyer: Address, qty: u32, amount: i128)` |
-| `offer:submit` | `BazaarDealEngine` | `("offer", "submit")` | `(circle_id: u64, offer_id: u64, seller: Address)` |
-| `offer:accept` | `BazaarDealEngine` | `("offer", "accept")` | `(circle_id: u64, offer_id: u64, caller: Address)` |
-| `deal:settled` | `BazaarDealEngine` | `("deal", "settled")` | `(circle_id: u64, winning_offer_id: u64, payout: i128)` |
-| `refund:claimed` | `BazaarDealEngine` | `("refund", "claimed")` | `(circle_id: u64, buyer: Address, amount: i128)` |
+| `circle:closed`  | `DemandCircleRegistry` | `("circle", "closed")`  | `(circle_id: u64, caller: Address)`                          |
+| `circle:expired` | `DemandCircleRegistry` | `("circle", "expired")` | `(circle_id: u64)`                                           |
+| `demand:commit`  | `BazaarDealEngine`     | `("demand", "commit")`  | `(circle_id: u64, buyer: Address, qty: u32, amount: i128)`   |
+| `offer:submit`   | `BazaarDealEngine`     | `("offer", "submit")`   | `(circle_id: u64, offer_id: u64, seller: Address)`           |
+| `offer:accept`   | `BazaarDealEngine`     | `("offer", "accept")`   | `(circle_id: u64, offer_id: u64, caller: Address)`           |
+| `deal:settled`   | `BazaarDealEngine`     | `("deal", "settled")`   | `(circle_id: u64, winning_offer_id: u64, payout: i128)`      |
+| `refund:claimed` | `BazaarDealEngine`     | `("refund", "claimed")` | `(circle_id: u64, buyer: Address, amount: i128)`             |
 
 ---
 
@@ -92,6 +92,7 @@ CREATE TABLE IF NOT EXISTS indexer_checkpoint (
 ```
 
 When querying Soroban RPC `getEvents`:
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -108,6 +109,7 @@ When querying Soroban RPC `getEvents`:
   }
 }
 ```
+
 Transactions within a ledger are committed atomically with the checkpoint sequence to ensure zero duplicate projections during restarts.
 
 ---
@@ -136,16 +138,16 @@ let top_sellers = repo.list_top_sellers(10)?;
 
 The `event_decoder` module converts raw JSON-RPC event topics into strongly-typed domain events:
 
-| Contract Event | Topic Symbol Pair | Decoded Rust Variant |
-|---|---|---|
-| Demand Circle Created | `("circle", "create")` | `BazaarContractEvent::CircleCreated` |
-| Buyer Demand Committed | `("demand", "commit")` | `BazaarContractEvent::DemandCommitted` |
-| Seller Offer Submitted | `("offer", "submit")` | `BazaarContractEvent::OfferSubmitted` |
-| Inspection Window Started | `("inspect", "start")` | `BazaarContractEvent::InspectionStarted` |
-| Commercial Dispute Raised | `("dispute", "opened")` | `BazaarContractEvent::DisputeOpened` |
-| Dispute Arbitrated | `("dispute", "resolve")` | `BazaarContractEvent::DisputeResolved` |
-| Bulk Deal Settled | `("deal", "settled")` | `BazaarContractEvent::DealSettled` |
-| Surplus Rebate Claimed | `("rebate", "claimed")` | `BazaarContractEvent::SurplusRebateClaimed` |
+| Contract Event            | Topic Symbol Pair        | Decoded Rust Variant                        |
+| ------------------------- | ------------------------ | ------------------------------------------- |
+| Demand Circle Created     | `("circle", "create")`   | `BazaarContractEvent::CircleCreated`        |
+| Buyer Demand Committed    | `("demand", "commit")`   | `BazaarContractEvent::DemandCommitted`      |
+| Seller Offer Submitted    | `("offer", "submit")`    | `BazaarContractEvent::OfferSubmitted`       |
+| Inspection Window Started | `("inspect", "start")`   | `BazaarContractEvent::InspectionStarted`    |
+| Commercial Dispute Raised | `("dispute", "opened")`  | `BazaarContractEvent::DisputeOpened`        |
+| Dispute Arbitrated        | `("dispute", "resolve")` | `BazaarContractEvent::DisputeResolved`      |
+| Bulk Deal Settled         | `("deal", "settled")`    | `BazaarContractEvent::DealSettled`          |
+| Surplus Rebate Claimed    | `("rebate", "claimed")`  | `BazaarContractEvent::SurplusRebateClaimed` |
 
 ---
 
@@ -154,6 +156,7 @@ The `event_decoder` module converts raw JSON-RPC event topics into strongly-type
 The indexer embeds a lightweight, multi-threaded HTTP server exposing standard RESTful endpoints:
 
 ### Running the Indexer Daemon:
+
 ```bash
 # In daemon mode with HTTP REST server on port 8080
 cargo run -p bazaar-indexer -- --serve --port 8080
@@ -163,13 +166,13 @@ cargo run -p bazaar-indexer -- --dry-run
 ```
 
 ### Endpoints Map:
-| Method | Path | Description |
-| :--- | :--- | :--- |
-| `GET` | `/health` | Ingestion status, processed ledgers, and consecutive error count |
-| `GET` | `/metrics` | Prometheus metrics format (`bazaar_events_ingested_total`, etc.) |
-| `GET` | `/api/v1/circles` | Paginated list of active buying circles with quorum stats |
-| `GET` | `/api/v1/circles/:id` | Detailed demand circle record with buyer commitments and offers |
-| `GET` | `/api/v1/top-sellers` | Top sellers ranked by completed deals and total settled volume |
-| `GET` | `/api/v1/disputes` | Active and resolved commercial disputes |
-| `GET` | `/api/v1/checkpoint` | Latest ingested ledger sequence checkpoint |
 
+| Method | Path                  | Description                                                      |
+| :----- | :-------------------- | :--------------------------------------------------------------- |
+| `GET`  | `/health`             | Ingestion status, processed ledgers, and consecutive error count |
+| `GET`  | `/metrics`            | Prometheus metrics format (`bazaar_events_ingested_total`, etc.) |
+| `GET`  | `/api/v1/circles`     | Paginated list of active buying circles with quorum stats        |
+| `GET`  | `/api/v1/circles/:id` | Detailed demand circle record with buyer commitments and offers  |
+| `GET`  | `/api/v1/top-sellers` | Top sellers ranked by completed deals and total settled volume   |
+| `GET`  | `/api/v1/disputes`    | Active and resolved commercial disputes                          |
+| `GET`  | `/api/v1/checkpoint`  | Latest ingested ledger sequence checkpoint                       |

@@ -8,11 +8,11 @@ This technical specification documents **Stellar Bazaar's** adherence to **Sorob
 
 Soroban Protocol 22 distinguishes between three storage tiers:
 
-| Tier | Storage Type | Used in Stellar Bazaar | Rationale |
-| :--- | :--- | :--- | :--- |
-| **Instance** | `env.storage().instance()` | Contract configuration, Admin address, Treasury address, Circle count, Fee basis points | Shared globally across all invocations; kept active via `extend_ttl`. |
-| **Persistent** | `env.storage().persistent()` | Demand Circles, Buyer Commitments, Seller Offers, Reputation Scores | Long-term commercial records requiring persistent historical custody until settlement. |
-| **Temporary** | `env.storage().temporary()` | Transient dispute evidence, ephemeral simulation nonces | Discarded after ledger TTL to optimize costs. |
+| Tier           | Storage Type                 | Used in Stellar Bazaar                                                                  | Rationale                                                                              |
+| :------------- | :--------------------------- | :-------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------- |
+| **Instance**   | `env.storage().instance()`   | Contract configuration, Admin address, Treasury address, Circle count, Fee basis points | Shared globally across all invocations; kept active via `extend_ttl`.                  |
+| **Persistent** | `env.storage().persistent()` | Demand Circles, Buyer Commitments, Seller Offers, Reputation Scores                     | Long-term commercial records requiring persistent historical custody until settlement. |
+| **Temporary**  | `env.storage().temporary()`  | Transient dispute evidence, ephemeral simulation nonces                                 | Discarded after ledger TTL to optimize costs.                                          |
 
 ---
 
@@ -45,4 +45,3 @@ Every state-mutating entry point (`create_deal_from_registry`, `commit_demand`, 
   );
   ```
 - Guaranteed forward compatibility with future Stellar protocol upgrades.
-

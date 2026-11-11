@@ -65,14 +65,7 @@ export class StellarBazaarClient {
     return {
       contractAddress: this.dealEngineAddress,
       method: 'create_circle',
-      args: [
-        creator,
-        tokenAddress,
-        targetUnitPriceStroops,
-        minVolume,
-        maxVolume,
-        durationSeconds,
-      ],
+      args: [creator, tokenAddress, targetUnitPriceStroops, minVolume, maxVolume, durationSeconds],
     };
   }
 

@@ -1,10 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import {
-  toStroops,
-  fromStroops,
-  calculateDiscountBps,
-  calculateRebate,
-} from '../src/converters';
+import { toStroops, fromStroops, calculateDiscountBps, calculateRebate } from '../src/converters';
 
 describe('SDK Converters', () => {
   it('converts decimal amounts to stroops accurately', () => {
@@ -36,4 +31,3 @@ describe('SDK Converters', () => {
     expect(rebate).toBe(100_000_000n);
   });
 });
-

@@ -6,4 +6,3 @@ export * from './client';
 export * from './tx-builder';
 export * from './event-watcher';
 export * from './errors';
-

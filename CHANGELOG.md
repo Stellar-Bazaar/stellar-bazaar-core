@@ -16,6 +16,7 @@ This release delivers **300 high-impact improvements** across smart contracts, i
 ### Added
 
 #### Soroban Smart Contracts (Protocol 22)
+
 - **Cross-Contract Registry Deal Engine**: Implemented `create_deal_from_registry` executing genuine Soroban cross-contract queries to `DemandCircleRegistry.get_circle()`.
 - **Native Stellar Asset Contract (SAC) Multi-Token Escrow**: Full integration with Stellar Asset Contracts holding XLM, Circle USDC, and EURC without wrapped tokens or synthetic balances.
 - **Programmatic Buyer Surplus Rebates**: Implemented `claim_surplus_rebate` distributing bulk price-difference savings back to buyers when winning merchant offers beat the circle ceiling price.
@@ -24,6 +25,7 @@ This release delivers **300 high-impact improvements** across smart contracts, i
 - **Storage TTL Rent Bumpers**: Integrated automatic `extend_ttl` extending instance storage to 518,400 ledgers (~30 days) on every state-mutating transaction to protect against ledger archiving.
 
 #### Relational Event Indexer & REST API (`crates/bazaar_indexer`)
+
 - **Event Consumer**: High-throughput Rust indexer polling Soroban RPC `getEvents` with cursor-based pagination.
 - **Idempotent Checkpointing**: SQLite WAL transaction-safe repository preventing duplicate commitment ingestion on batch replay or crash recovery.
 - **Embedded HTTP REST Server**: 10 production endpoints (`/health`, `/metrics`, `/api/v1/circles`, `/api/v1/disputes`, `/api/v1/top-sellers`).
@@ -31,17 +33,20 @@ This release delivers **300 high-impact improvements** across smart contracts, i
 - **CLI Runner**: Daemon CLI binary with configurable RPC endpoints and SQLite connection pools.
 
 #### Lossless Precision Math Crate (`crates/bazaar_math`)
+
 - Strict 7-decimal stroop integer conversion functions (`xlm_to_stroops`, `stroops_to_xlm`).
 - Integer surplus rebate arithmetic with mathematical invariant verification.
 - Protocol fee basis point partitioning with strict upper bound validation (<= 1,000 bps / 10%).
 
 #### Developer SDK (`packages/sdk` / `@stellar-bazaar/sdk`)
+
 - First-party TypeScript SDK in strict mode with Zero `any` types.
 - `TransactionBuilder` with automatic CPU/RAM fee budgeting and simulation parsing.
 - `EventWatcher` client providing real-time streaming of Soroban contract events.
 - Custom error hierarchy mapping Soroban contract error codes to actionable TypeScript exceptions.
 
 #### CI/CD & Governance
+
 - Added `Stellar Bazaar Core CI` with Rust unit/integration tests, clippy `-D warnings`, rustfmt check, and SDK Node 20/22 matrix.
 - Added `Soroban Lifecycle Simulation` workflow verifying complete cooperative deal lifecycles end-to-end.
 - Added `Security & Vulnerability Scanning` with Gitleaks and Cargo audit.
@@ -49,11 +54,13 @@ This release delivers **300 high-impact improvements** across smart contracts, i
 - Added `docs/hackathon_judging_guide.md` and `docs/demo_runbook.md`.
 
 ### Changed
+
 - Standardized all stroop values to 7-decimal integer types (`i128` / `u64`).
 - Refactored all contract payout methods to follow the strict Checks-Effects-Interactions (CEI) anti-reentrancy pattern.
 - Updated root `README.md` with comprehensive reviewer quick-reference tables, test breakdown matrix, and architecture diagrams.
 
 ### Fixed
+
 - Fixed unconstrained storage growth by scoping map keys to unique circle and commitment identifiers.
 - Fixed premature settlement vulnerability by enforcing strict ledger timestamp inspection window elapsed checks.
 - Fixed duplicate seller offer submissions by validating unique merchant addresses per circle.
@@ -63,6 +70,7 @@ This release delivers **300 high-impact improvements** across smart contracts, i
 ## [0.1.0] - 2026-10-08
 
 ### Initial Prototype
+
 - Initial baseline smart contract prototypes for `DemandCircleRegistry` and `BazaarDealEngine`.
 - Basic Soroban testnet deployment scripts.
 - Initial project scaffolding.
