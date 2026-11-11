@@ -46,7 +46,7 @@ This release delivers **300 high-impact improvements** across smart contracts, i
 - Added `Soroban Lifecycle Simulation` workflow verifying complete cooperative deal lifecycles end-to-end.
 - Added `Security & Vulnerability Scanning` with Gitleaks and Cargo audit.
 - Added `SECURITY.md` with threat model, asset custody boundary analysis, and 24-hour response SLA.
-- Added `docs/hackathon_judging_guide.md`, `docs/demo_runbook.md`, and `docs/security_audit_report.md`.
+- Added `docs/hackathon_judging_guide.md` and `docs/demo_runbook.md`.
 
 ### Changed
 - Standardized all stroop values to 7-decimal integer types (`i128` / `u64`).

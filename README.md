@@ -203,7 +203,6 @@ Genuine screenshots captured from development tools and running application:
 - [Hackathon & Grant Judging Guide](docs/hackathon_judging_guide.md)
 - [Interactive Reviewer Demo Runbook](docs/demo_runbook.md)
 - [Stellar Ecosystem Relevance Brief](docs/stellar_ecosystem_relevance.md)
-- [Comprehensive Security Audit Report](docs/security_audit_report.md)
 - [Mathematical Invariants & Solvency Proofs](docs/smart_contract_formal_verification.md)
 - [Developer FAQ & Troubleshooting](docs/faq_and_troubleshooting.md)
 
