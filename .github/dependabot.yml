@@ -10,6 +10,9 @@ updates:
       rust-dependencies:
         patterns:
           - '*'
+    ignore:
+      - dependency-name: 'soroban-sdk'
+        update-types: ['version-update:semver-major']
 
   - package-ecosystem: 'npm'
     directory: '/packages/sdk'
