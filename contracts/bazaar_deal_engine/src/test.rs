@@ -905,3 +905,139 @@ fn test_cancel_during_inspection_or_after_acceptance_rejected() {
     let err_inspect = client.try_cancel_circle(&creator, &circle_id);
     assert_eq!(err_inspect, Err(Ok(Error::CircleAlreadyClosed)));
 }
+
+#[test]
+fn test_multisig_arbitrator_council_buyer_refund_and_guards() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let creator = Address::generate(&env);
+    let buyer = Address::generate(&env);
+    let seller = Address::generate(&env);
+    let arb1 = Address::generate(&env);
+    let arb2 = Address::generate(&env);
+    let arb3 = Address::generate(&env);
+    let outsider = Address::generate(&env);
+
+    let token_admin = Address::generate(&env);
+    let token_contract = env.register_stellar_asset_contract_v2(token_admin);
+    let token_client = token::Client::new(&env, &token_contract.address());
+    let token_admin_client = StellarAssetClient::new(&env, &token_contract.address());
+    token_admin_client.mint(&buyer, &100_000_000);
+
+    let contract_id = env.register(BazaarDealEngineContract, ());
+    let client = BazaarDealEngineContractClient::new(&env, &contract_id);
+    client.initialize(&admin);
+
+    // Invalid threshold (0 or > members.len()) is rejected
+    let members = soroban_sdk::vec![&env, arb1.clone(), arb2.clone(), arb3.clone()];
+    assert_eq!(
+        client.try_set_arbitrator_council(&admin, &members, &0),
+        Err(Ok(Error::InvalidThreshold))
+    );
+    assert_eq!(
+        client.try_set_arbitrator_council(&admin, &members, &4),
+        Err(Ok(Error::InvalidThreshold))
+    );
+
+    // Configure 2-of-3 arbitrator council
+    client.set_arbitrator_council(&admin, &members, &2);
+    let council = client.get_arbitrator_council().unwrap();
+    assert_eq!(council.threshold, 2);
+    assert_eq!(council.members.len(), 3);
+
+    let circle_id = client.create_circle(
+        &creator,
+        &token_contract.address(),
+        &10_000_000,
+        &5,
+        &20,
+        &86400,
+    );
+    client.commit_demand(&buyer, &circle_id, &5);
+    let offer_id = client.submit_seller_offer(&seller, &circle_id, &9_000_000, &10, &3);
+    client.accept_seller_offer(&creator, &circle_id, &offer_id);
+    client.initiate_inspection(&creator, &circle_id, &86400);
+    client.dispute_deal(&buyer, &circle_id, &Symbol::new(&env, "DEFECTIVE_BATCH"));
+
+    // Non-council member cannot vote
+    assert_eq!(
+        client.try_cast_dispute_vote(&outsider, &circle_id, &true),
+        Err(Ok(Error::Unauthorized))
+    );
+
+    // Arbitrator 1 votes to refund buyers (1 of 2 threshold -> not yet resolved)
+    let resolved1 = client.cast_dispute_vote(&arb1, &circle_id, &true);
+    assert!(!resolved1);
+    assert_eq!(client.get_circle(&circle_id).status, CircleStatus::Disputed);
+
+    // Arbitrator 1 cannot vote twice on the same dispute
+    assert_eq!(
+        client.try_cast_dispute_vote(&arb1, &circle_id, &true),
+        Err(Ok(Error::DuplicateVote))
+    );
+
+    // Arbitrator 2 votes to refund buyers (2 of 2 threshold -> automatically resolves to Cancelled!)
+    let resolved2 = client.cast_dispute_vote(&arb2, &circle_id, &true);
+    assert!(resolved2);
+    assert_eq!(client.get_circle(&circle_id).status, CircleStatus::Cancelled);
+
+    let tally = client.get_dispute_vote_tally(&circle_id);
+    assert_eq!(tally.refund_votes, 2);
+    assert_eq!(tally.settle_votes, 0);
+    assert!(tally.resolved);
+
+    // Buyer claims full refund
+    client.claim_refund(&buyer, &circle_id);
+    assert_eq!(token_client.balance(&buyer), 100_000_000);
+}
+
+#[test]
+fn test_multisig_arbitrator_council_seller_settlement() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let creator = Address::generate(&env);
+    let buyer = Address::generate(&env);
+    let seller = Address::generate(&env);
+    let arb1 = Address::generate(&env);
+    let arb2 = Address::generate(&env);
+    let arb3 = Address::generate(&env);
+
+    let token_admin = Address::generate(&env);
+    let token_contract = env.register_stellar_asset_contract_v2(token_admin);
+    let token_client = token::Client::new(&env, &token_contract.address());
+    let token_admin_client = StellarAssetClient::new(&env, &token_contract.address());
+    token_admin_client.mint(&buyer, &100_000_000);
+
+    let contract_id = env.register(BazaarDealEngineContract, ());
+    let client = BazaarDealEngineContractClient::new(&env, &contract_id);
+    client.initialize(&admin);
+
+    let members = soroban_sdk::vec![&env, arb1.clone(), arb2.clone(), arb3.clone()];
+    client.set_arbitrator_council(&admin, &members, &2);
+
+    let circle_id = client.create_circle(
+        &creator,
+        &token_contract.address(),
+        &10_000_000,
+        &5,
+        &20,
+        &86400,
+    );
+    client.commit_demand(&buyer, &circle_id, &5);
+    let offer_id = client.submit_seller_offer(&seller, &circle_id, &9_000_000, &10, &3);
+    client.accept_seller_offer(&creator, &circle_id, &offer_id);
+    client.initiate_inspection(&creator, &circle_id, &86400);
+    client.dispute_deal(&buyer, &circle_id, &Symbol::new(&env, "MINOR_DELAY"));
+
+    // Split vote: arb1 votes refund (true), arb2 votes settle (false), arb3 votes settle (false) -> 2 settle votes
+    assert!(!client.cast_dispute_vote(&arb1, &circle_id, &true));
+    assert!(!client.cast_dispute_vote(&arb2, &circle_id, &false));
+    assert!(client.cast_dispute_vote(&arb3, &circle_id, &false));
+
+    assert_eq!(client.get_circle(&circle_id).status, CircleStatus::Settled);
+    assert_eq!(token_client.balance(&seller), 44_550_000);
+}
