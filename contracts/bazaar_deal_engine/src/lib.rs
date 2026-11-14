@@ -60,6 +60,8 @@ pub enum Error {
     InvalidFeeBps = 25,
     NoSurplusRebate = 26,
     AlreadyClaimedRebate = 27,
+    InvalidThreshold = 28,
+    DuplicateVote = 29,
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -131,6 +133,21 @@ pub struct SellerReputation {
     pub disputed_or_refunded_deals: u32,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[contracttype]
+pub struct ArbitratorCouncil {
+    pub members: Vec<Address>,
+    pub threshold: u32,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+#[contracttype]
+pub struct DisputeVoteTally {
+    pub refund_votes: u32,
+    pub settle_votes: u32,
+    pub resolved: bool,
+}
+
 #[derive(Clone)]
 #[contracttype]
 pub enum DataKey {
@@ -145,6 +162,9 @@ pub enum DataKey {
     Treasury,
     ProtocolFeeBps,
     RebateClaimed(u64, Address),
+    ArbitratorCouncil,
+    DisputeVote(u64, Address),
+    DisputeVoteTally(u64),
 }
 
 #[contract]
@@ -753,6 +773,197 @@ impl BazaarDealEngineContract {
             return Err(Error::DisputeNotOpen);
         }
 
+        Self::execute_dispute_resolution(&env, &mut circle, caller, refund_to_buyers)
+    }
+
+    /// Configure the multi-sig ArbitratorCouncil registry and M-of-N voting threshold.
+    pub fn set_arbitrator_council(
+        env: Env,
+        caller: Address,
+        members: Vec<Address>,
+        threshold: u32,
+    ) -> Result<(), Error> {
+        caller.require_auth();
+
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .ok_or(Error::NotInitialized)?;
+
+        if caller != admin {
+            return Err(Error::Unauthorized);
+        }
+
+        let member_count = members.len();
+        if threshold == 0 || member_count == 0 || threshold > member_count {
+            return Err(Error::InvalidThreshold);
+        }
+
+        // Reject duplicate arbitrator addresses in the council
+        let mut i = 0;
+        while i < member_count {
+            let addr_i = members.get(i).unwrap();
+            let mut j = i + 1;
+            while j < member_count {
+                if addr_i == members.get(j).unwrap() {
+                    return Err(Error::InvalidThreshold);
+                }
+                j += 1;
+            }
+            i += 1;
+        }
+
+        let council = ArbitratorCouncil {
+            members: members.clone(),
+            threshold,
+        };
+        env.storage()
+            .instance()
+            .set(&DataKey::ArbitratorCouncil, &council);
+        env.storage()
+            .instance()
+            .extend_ttl(INSTANCE_TTL_THRESHOLD, INSTANCE_TTL_EXTEND_TO);
+
+        env.events().publish(
+            (symbol_short!("council"), symbol_short!("updated")),
+            (caller, member_count, threshold),
+        );
+
+        Ok(())
+    }
+
+    /// Query the currently configured multi-sig ArbitratorCouncil.
+    pub fn get_arbitrator_council(env: Env) -> Option<ArbitratorCouncil> {
+        env.storage()
+            .instance()
+            .extend_ttl(INSTANCE_TTL_THRESHOLD, INSTANCE_TTL_EXTEND_TO);
+        env.storage().instance().get(&DataKey::ArbitratorCouncil)
+    }
+
+    /// Query the current dispute vote tally for a circle.
+    pub fn get_dispute_vote_tally(env: Env, circle_id: u64) -> DisputeVoteTally {
+        let key = DataKey::DisputeVoteTally(circle_id);
+        if env.storage().persistent().has(&key) {
+            env.storage().persistent().extend_ttl(
+                &key,
+                INSTANCE_TTL_THRESHOLD,
+                INSTANCE_TTL_EXTEND_TO,
+            );
+        }
+        env.storage()
+            .persistent()
+            .get(&key)
+            .unwrap_or(DisputeVoteTally {
+                refund_votes: 0,
+                settle_votes: 0,
+                resolved: false,
+            })
+    }
+
+    /// Cast a cryptographic arbitrator vote on an active circle dispute.
+    /// Automatically executes dispute resolution once the M-of-N council threshold is reached.
+    /// Returns Ok(true) if this vote met the threshold and triggered resolution, or Ok(false) otherwise.
+    pub fn cast_dispute_vote(
+        env: Env,
+        arbitrator: Address,
+        circle_id: u64,
+        refund_to_buyers: bool,
+    ) -> Result<bool, Error> {
+        arbitrator.require_auth();
+
+        let council: ArbitratorCouncil = env
+            .storage()
+            .instance()
+            .get(&DataKey::ArbitratorCouncil)
+            .ok_or(Error::Unauthorized)?;
+
+        if !council.members.contains(&arbitrator) {
+            return Err(Error::Unauthorized);
+        }
+
+        let mut circle: DemandCircle = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Circle(circle_id))
+            .ok_or(Error::CircleNotFound)?;
+
+        if circle.status != CircleStatus::Disputed {
+            return Err(Error::DisputeNotOpen);
+        }
+
+        let vote_key = DataKey::DisputeVote(circle_id, arbitrator.clone());
+        if env.storage().persistent().has(&vote_key) {
+            return Err(Error::DuplicateVote);
+        }
+
+        env.storage()
+            .persistent()
+            .set(&vote_key, &refund_to_buyers);
+        env.storage().persistent().extend_ttl(
+            &vote_key,
+            INSTANCE_TTL_THRESHOLD,
+            INSTANCE_TTL_EXTEND_TO,
+        );
+
+        let tally_key = DataKey::DisputeVoteTally(circle_id);
+        let mut tally: DisputeVoteTally =
+            env.storage()
+                .persistent()
+                .get(&tally_key)
+                .unwrap_or(DisputeVoteTally {
+                    refund_votes: 0,
+                    settle_votes: 0,
+                    resolved: false,
+                });
+
+        if refund_to_buyers {
+            tally.refund_votes += 1;
+        } else {
+            tally.settle_votes += 1;
+        }
+
+        env.events().publish(
+            (symbol_short!("dispute"), symbol_short!("vote")),
+            (
+                circle_id,
+                arbitrator.clone(),
+                refund_to_buyers,
+                tally.refund_votes,
+                tally.settle_votes,
+            ),
+        );
+
+        let threshold_reached =
+            tally.refund_votes >= council.threshold || tally.settle_votes >= council.threshold;
+
+        if threshold_reached {
+            tally.resolved = true;
+        }
+
+        env.storage().persistent().set(&tally_key, &tally);
+        env.storage().persistent().extend_ttl(
+            &tally_key,
+            INSTANCE_TTL_THRESHOLD,
+            INSTANCE_TTL_EXTEND_TO,
+        );
+
+        if threshold_reached {
+            let outcome_refund = tally.refund_votes >= council.threshold;
+            Self::execute_dispute_resolution(&env, &mut circle, arbitrator, outcome_refund)?;
+            return Ok(true);
+        }
+
+        Ok(false)
+    }
+
+    fn execute_dispute_resolution(
+        env: &Env,
+        circle: &mut DemandCircle,
+        resolver: Address,
+        refund_to_buyers: bool,
+    ) -> Result<(), Error> {
+        let circle_id = circle.id;
         if refund_to_buyers {
             circle.status = CircleStatus::Cancelled;
 
@@ -787,7 +998,7 @@ impl BazaarDealEngineContract {
 
             env.storage()
                 .persistent()
-                .set(&DataKey::Circle(circle_id), &circle);
+                .set(&DataKey::Circle(circle_id), circle);
             env.storage().persistent().extend_ttl(
                 &DataKey::Circle(circle_id),
                 INSTANCE_TTL_THRESHOLD,
@@ -796,7 +1007,7 @@ impl BazaarDealEngineContract {
 
             env.events().publish(
                 (symbol_short!("dispute"), symbol_short!("resolve")),
-                (circle_id, caller, true),
+                (circle_id, resolver, true),
             );
 
             Ok(())
@@ -807,7 +1018,7 @@ impl BazaarDealEngineContract {
                 .persistent()
                 .get(&DataKey::Offer(winning_offer_id))
                 .ok_or(Error::OfferNotFound)?;
-            Self::settle_deal_internal(&env, &mut circle, &offer, winning_offer_id)
+            Self::settle_deal_internal(env, circle, &offer, winning_offer_id)
         }
     }
 
