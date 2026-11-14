@@ -118,6 +118,7 @@ pub struct SellerOffer {
     pub unit_price: i128,
     pub volume: u32,
     pub lead_time_days: u32,
+    pub seller_bond_stroops: i128,
     pub status: OfferStatus,
 }
 
@@ -145,6 +146,11 @@ pub enum DataKey {
     Treasury,
     ProtocolFeeBps,
     RebateClaimed(u64, Address),
+    SellerBondBps,
+    EscrowedSellerBond(u64),
+    SlashedSellerBond(u64),
+    SlashedBondDistributed(u64),
+    CircleRefundedVolume(u64),
 }
 
 #[contract]
@@ -476,6 +482,14 @@ impl BazaarDealEngineContract {
             .unwrap_or(0);
         offer_counter += 1;
 
+        let bond_bps: u32 = env
+            .storage()
+            .instance()
+            .get(&DataKey::SellerBondBps)
+            .unwrap_or(0);
+        let total_offer_value = unit_price * (volume as i128);
+        let seller_bond_stroops = (total_offer_value * (bond_bps as i128)) / 10_000;
+
         let offer = SellerOffer {
             id: offer_counter,
             seller: seller.clone(),
@@ -483,6 +497,7 @@ impl BazaarDealEngineContract {
             unit_price,
             volume,
             lead_time_days,
+            seller_bond_stroops,
             status: OfferStatus::Submitted,
         };
 
@@ -520,6 +535,44 @@ impl BazaarDealEngineContract {
         );
 
         Ok(offer_counter)
+    }
+
+    /// Submit a competitive seller quote with an explicit performance bond amount in stroops.
+    pub fn submit_seller_offer_with_bond(
+        env: Env,
+        seller: Address,
+        circle_id: u64,
+        unit_price: i128,
+        volume: u32,
+        lead_time_days: u32,
+        seller_bond_stroops: i128,
+    ) -> Result<u64, Error> {
+        if seller_bond_stroops < 0 {
+            return Err(Error::InvalidAmount);
+        }
+        let offer_id = Self::submit_seller_offer(
+            env.clone(),
+            seller,
+            circle_id,
+            unit_price,
+            volume,
+            lead_time_days,
+        )?;
+        let mut offer: SellerOffer = env
+            .storage()
+            .persistent()
+            .get(&DataKey::Offer(offer_id))
+            .ok_or(Error::OfferNotFound)?;
+        offer.seller_bond_stroops = seller_bond_stroops;
+        env.storage()
+            .persistent()
+            .set(&DataKey::Offer(offer_id), &offer);
+        env.storage().persistent().extend_ttl(
+            &DataKey::Offer(offer_id),
+            INSTANCE_TTL_THRESHOLD,
+            INSTANCE_TTL_EXTEND_TO,
+        );
+        Ok(offer_id)
     }
 
     /// Accept a seller offer for an active circle that reached quorum.
@@ -562,6 +615,17 @@ impl BazaarDealEngineContract {
         offer.status = OfferStatus::Accepted;
         circle.accepted_offer_id = Some(offer_id);
 
+        let bond_amount = offer.seller_bond_stroops;
+        if bond_amount > 0 {
+            let bond_key = DataKey::EscrowedSellerBond(circle_id);
+            env.storage().persistent().set(&bond_key, &bond_amount);
+            env.storage().persistent().extend_ttl(
+                &bond_key,
+                INSTANCE_TTL_THRESHOLD,
+                INSTANCE_TTL_EXTEND_TO,
+            );
+        }
+
         env.storage()
             .persistent()
             .set(&DataKey::Circle(circle_id), &circle);
@@ -578,6 +642,20 @@ impl BazaarDealEngineContract {
             INSTANCE_TTL_THRESHOLD,
             INSTANCE_TTL_EXTEND_TO,
         );
+
+        if bond_amount > 0 {
+            offer.seller.require_auth();
+            let contract_address = env.current_contract_address();
+            token::Client::new(&env, &circle.token).transfer(
+                &offer.seller,
+                &contract_address,
+                &bond_amount,
+            );
+            env.events().publish(
+                (symbol_short!("bond"), symbol_short!("locked")),
+                (circle_id, offer_id, offer.seller.clone(), bond_amount),
+            );
+        }
 
         env.events().publish(
             (symbol_short!("offer"), symbol_short!("accept")),
@@ -756,6 +834,24 @@ impl BazaarDealEngineContract {
         if refund_to_buyers {
             circle.status = CircleStatus::Cancelled;
 
+            // Slash any escrowed seller performance bond for pro-rata buyer compensation
+            let bond_key = DataKey::EscrowedSellerBond(circle_id);
+            let escrowed_bond: i128 = env.storage().persistent().get(&bond_key).unwrap_or(0);
+            if escrowed_bond > 0 {
+                env.storage().persistent().set(&bond_key, &0i128);
+                let slashed_key = DataKey::SlashedSellerBond(circle_id);
+                env.storage().persistent().set(&slashed_key, &escrowed_bond);
+                env.storage().persistent().extend_ttl(
+                    &slashed_key,
+                    INSTANCE_TTL_THRESHOLD,
+                    INSTANCE_TTL_EXTEND_TO,
+                );
+                env.events().publish(
+                    (symbol_short!("bond"), symbol_short!("slashed")),
+                    (circle_id, escrowed_bond),
+                );
+            }
+
             // Update seller reputation to record dispute/refund
             if let Some(offer_id) = circle.accepted_offer_id {
                 if let Some(offer) = env
@@ -894,7 +990,18 @@ impl BazaarDealEngineContract {
         let (seller_payout, protocol_fee) =
             bazaar_math::calculate_net_payout(payout, fee_bps).unwrap_or((payout, 0));
 
+        let bond_key = DataKey::EscrowedSellerBond(circle.id);
+        let bond_returned: i128 = env.storage().persistent().get(&bond_key).unwrap_or(0);
+
         // --- 2. EFFECTS (State mutations before external transfer) ---
+        if bond_returned > 0 {
+            env.storage().persistent().set(&bond_key, &0i128);
+            env.storage().persistent().extend_ttl(
+                &bond_key,
+                INSTANCE_TTL_THRESHOLD,
+                INSTANCE_TTL_EXTEND_TO,
+            );
+        }
         let mut mut_offer = offer.clone();
         mut_offer.status = OfferStatus::Accepted;
         circle.status = CircleStatus::Settled;
@@ -954,11 +1061,19 @@ impl BazaarDealEngineContract {
             }
         }
 
+        let total_seller_release = seller_payout + bond_returned;
         token_client.transfer(
             &env.current_contract_address(),
             &offer.seller,
-            &seller_payout,
+            &total_seller_release,
         );
+
+        if bond_returned > 0 {
+            env.events().publish(
+                (symbol_short!("bond"), symbol_short!("returned")),
+                (circle.id, winning_offer_id, offer.seller.clone(), bond_returned),
+            );
+        }
 
         env.events().publish(
             (symbol_short!("deal"), symbol_short!("settled")),
@@ -1004,7 +1119,45 @@ impl BazaarDealEngineContract {
             return Err(Error::AlreadyRefunded);
         }
 
+        // Calculate pro-rata share of any slashed seller bond (with zero-dust final claim)
+        let slashed_bond: i128 = env
+            .storage()
+            .persistent()
+            .get(&DataKey::SlashedSellerBond(circle_id))
+            .unwrap_or(0);
+        let mut bond_compensation: i128 = 0;
+
         // --- 2. EFFECTS ---
+        if is_cancelled && slashed_bond > 0 && circle.current_volume > 0 {
+            let vol_key = DataKey::CircleRefundedVolume(circle_id);
+            let dist_key = DataKey::SlashedBondDistributed(circle_id);
+            let prev_refunded_vol: u32 = env.storage().persistent().get(&vol_key).unwrap_or(0);
+            let prev_distributed: i128 = env.storage().persistent().get(&dist_key).unwrap_or(0);
+            let next_refunded_vol = prev_refunded_vol + commitment.quantity;
+
+            if next_refunded_vol >= circle.current_volume {
+                bond_compensation = (slashed_bond - prev_distributed).max(0);
+            } else {
+                let buyer_qty = commitment.quantity as i128;
+                let total_vol = circle.current_volume as i128;
+                bond_compensation = (slashed_bond * buyer_qty) / total_vol;
+            }
+
+            let next_distributed = prev_distributed + bond_compensation;
+            env.storage().persistent().set(&vol_key, &next_refunded_vol);
+            env.storage().persistent().extend_ttl(
+                &vol_key,
+                INSTANCE_TTL_THRESHOLD,
+                INSTANCE_TTL_EXTEND_TO,
+            );
+            env.storage().persistent().set(&dist_key, &next_distributed);
+            env.storage().persistent().extend_ttl(
+                &dist_key,
+                INSTANCE_TTL_THRESHOLD,
+                INSTANCE_TTL_EXTEND_TO,
+            );
+        }
+
         commitment.refunded = true;
         env.storage().persistent().set(&commitment_key, &commitment);
         env.storage().persistent().extend_ttl(
@@ -1014,15 +1167,16 @@ impl BazaarDealEngineContract {
         );
 
         // --- 3. INTERACTIONS ---
+        let total_refund = commitment.amount + bond_compensation;
         token::Client::new(&env, &circle.token).transfer(
             &env.current_contract_address(),
             &buyer,
-            &commitment.amount,
+            &total_refund,
         );
 
         env.events().publish(
             (symbol_short!("refund"), symbol_short!("claimed")),
-            (circle_id, buyer, commitment.amount),
+            (circle_id, buyer, total_refund),
         );
 
         Ok(())
@@ -1284,6 +1438,41 @@ impl BazaarDealEngineContract {
     /// Returns the active protocol treasury address if configured.
     pub fn get_treasury(env: Env) -> Option<Address> {
         env.storage().instance().get(&DataKey::Treasury)
+    }
+
+    /// Configure the default seller security performance bond in basis points (max 5,000 bps / 50%).
+    pub fn set_seller_bond_bps(env: Env, caller: Address, bond_bps: u32) -> Result<(), Error> {
+        caller.require_auth();
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .ok_or(Error::NotInitialized)?;
+        if caller != admin {
+            return Err(Error::Unauthorized);
+        }
+        if bond_bps > 5_000 {
+            return Err(Error::InvalidFeeBps);
+        }
+        env.storage()
+            .instance()
+            .set(&DataKey::SellerBondBps, &bond_bps);
+        env.storage()
+            .instance()
+            .extend_ttl(INSTANCE_TTL_THRESHOLD, INSTANCE_TTL_EXTEND_TO);
+        env.events().publish(
+            (symbol_short!("bond_bps"), symbol_short!("update")),
+            (caller, bond_bps),
+        );
+        Ok(())
+    }
+
+    /// Returns the currently configured seller performance bond in basis points.
+    pub fn get_seller_bond_bps(env: Env) -> u32 {
+        env.storage()
+            .instance()
+            .get(&DataKey::SellerBondBps)
+            .unwrap_or(0)
     }
 }
 
