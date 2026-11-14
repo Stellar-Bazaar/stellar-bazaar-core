@@ -905,3 +905,68 @@ fn test_cancel_during_inspection_or_after_acceptance_rejected() {
     let err_inspect = client.try_cancel_circle(&creator, &circle_id);
     assert_eq!(err_inspect, Err(Ok(Error::CircleAlreadyClosed)));
 }
+
+#[test]
+fn test_bounded_offer_pagination_and_55_sellers_scaling() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let creator = Address::generate(&env);
+    let token_admin = Address::generate(&env);
+    let token_contract = env.register_stellar_asset_contract_v2(token_admin);
+
+    let contract_id = env.register(BazaarDealEngineContract, ());
+    let client = BazaarDealEngineContractClient::new(&env, &contract_id);
+    client.initialize(&admin);
+
+    let circle_id = client.create_circle(
+        &creator,
+        &token_contract.address(),
+        &10_000_000,
+        &5,
+        &100,
+        &86400,
+    );
+
+    assert_eq!(client.get_circle_offers_count(&circle_id), 0);
+    assert_eq!(client.get_circle_offers_slice(&circle_id, &0, &10).len(), 0);
+
+    // Submit 55 competitive seller offers with O(1) indexed storage per offer
+    for i in 0..55u32 {
+        let seller = Address::generate(&env);
+        let offer_price = 9_500_000 - ((i as i128) * 10_000);
+        let offer_id = client.submit_seller_offer(&seller, &circle_id, &offer_price, &20, &5);
+        assert_eq!(offer_id, (i as u64) + 1);
+
+        // Verify O(1) duplicate active offer guard for the same seller
+        let dup_err = client.try_submit_seller_offer(&seller, &circle_id, &offer_price, &20, &5);
+        assert_eq!(dup_err, Err(Ok(Error::DuplicateOffer)));
+    }
+
+    assert_eq!(client.get_circle_offers_count(&circle_id), 55);
+
+    // Paginate in pages of 20
+    let page1 = client.get_circle_offers_slice(&circle_id, &0, &20);
+    assert_eq!(page1.len(), 20);
+    assert_eq!(page1.get(0), Some(1));
+    assert_eq!(page1.get(19), Some(20));
+
+    let page2 = client.get_circle_offers_slice(&circle_id, &20, &20);
+    assert_eq!(page2.len(), 20);
+    assert_eq!(page2.get(0), Some(21));
+    assert_eq!(page2.get(19), Some(40));
+
+    let page3 = client.get_circle_offers_slice(&circle_id, &40, &20);
+    assert_eq!(page3.len(), 15);
+    assert_eq!(page3.get(0), Some(41));
+    assert_eq!(page3.get(14), Some(55));
+
+    // Out-of-bounds start_index or zero limit returns empty Vec safely
+    assert_eq!(client.get_circle_offers_slice(&circle_id, &55, &10).len(), 0);
+    assert_eq!(client.get_circle_offers_slice(&circle_id, &0, &0).len(), 0);
+
+    // Backwards-compatible full query returns all 55 offers
+    let all_offers = client.get_circle_offers(&circle_id);
+    assert_eq!(all_offers.len(), 55);
+}

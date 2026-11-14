@@ -145,6 +145,9 @@ pub enum DataKey {
     Treasury,
     ProtocolFeeBps,
     RebateClaimed(u64, Address),
+    CircleOffer(u64, u32),
+    CircleOfferCount(u64),
+    SellerActiveOffer(u64, Address),
 }
 
 #[contract]
@@ -226,12 +229,11 @@ impl BazaarDealEngineContract {
         env.storage()
             .instance()
             .set(&DataKey::CircleCounter, &circle_counter);
-        let empty_offers: Vec<u64> = vec![&env];
         env.storage()
             .persistent()
-            .set(&DataKey::CircleOffers(circle_counter), &empty_offers);
+            .set(&DataKey::CircleOfferCount(circle_counter), &0u32);
         env.storage().persistent().extend_ttl(
-            &DataKey::CircleOffers(circle_counter),
+            &DataKey::CircleOfferCount(circle_counter),
             INSTANCE_TTL_THRESHOLD,
             INSTANCE_TTL_EXTEND_TO,
         );
@@ -315,12 +317,11 @@ impl BazaarDealEngineContract {
         env.storage()
             .instance()
             .set(&DataKey::CircleCounter, &circle_counter);
-        let empty_offers: Vec<u64> = vec![&env];
         env.storage()
             .persistent()
-            .set(&DataKey::CircleOffers(circle_counter), &empty_offers);
+            .set(&DataKey::CircleOfferCount(circle_counter), &0u32);
         env.storage().persistent().extend_ttl(
-            &DataKey::CircleOffers(circle_counter),
+            &DataKey::CircleOfferCount(circle_counter),
             INSTANCE_TTL_THRESHOLD,
             INSTANCE_TTL_EXTEND_TO,
         );
@@ -451,19 +452,19 @@ impl BazaarDealEngineContract {
             return Err(Error::PriceExceedsTarget);
         }
 
-        // Validate that this seller has not already submitted an active offer for this circle
-        let existing_offers: Vec<u64> = env
+        // Validate in O(1) that this seller does not already have an active offer for this circle
+        let active_offer_key = DataKey::SellerActiveOffer(circle_id, seller.clone());
+        if let Some(existing_offer_id) = env
             .storage()
             .persistent()
-            .get(&DataKey::CircleOffers(circle_id))
-            .unwrap_or_else(|| vec![&env]);
-        for off_id in existing_offers.iter() {
+            .get::<DataKey, u64>(&active_offer_key)
+        {
             if let Some(existing) = env
                 .storage()
                 .persistent()
-                .get::<DataKey, SellerOffer>(&DataKey::Offer(off_id))
+                .get::<DataKey, SellerOffer>(&DataKey::Offer(existing_offer_id))
             {
-                if existing.seller == seller && existing.status == OfferStatus::Submitted {
+                if existing.status == OfferStatus::Submitted {
                     return Err(Error::DuplicateOffer);
                 }
             }
@@ -498,18 +499,33 @@ impl BazaarDealEngineContract {
             .instance()
             .set(&DataKey::OfferCounter, &offer_counter);
 
-        // Append to circle offers list
-        let mut circle_offers: Vec<u64> = env
-            .storage()
-            .persistent()
-            .get(&DataKey::CircleOffers(circle_id))
-            .unwrap_or_else(|| vec![&env]);
-        circle_offers.push_back(offer_counter);
+        // Store offer in bounded O(1) indexed persistent storage
+        let count_key = DataKey::CircleOfferCount(circle_id);
+        let offer_index: u32 = env.storage().persistent().get(&count_key).unwrap_or(0);
+        let indexed_offer_key = DataKey::CircleOffer(circle_id, offer_index);
+
         env.storage()
             .persistent()
-            .set(&DataKey::CircleOffers(circle_id), &circle_offers);
+            .set(&indexed_offer_key, &offer_counter);
         env.storage().persistent().extend_ttl(
-            &DataKey::CircleOffers(circle_id),
+            &indexed_offer_key,
+            INSTANCE_TTL_THRESHOLD,
+            INSTANCE_TTL_EXTEND_TO,
+        );
+
+        let next_count = offer_index + 1;
+        env.storage().persistent().set(&count_key, &next_count);
+        env.storage().persistent().extend_ttl(
+            &count_key,
+            INSTANCE_TTL_THRESHOLD,
+            INSTANCE_TTL_EXTEND_TO,
+        );
+
+        env.storage()
+            .persistent()
+            .set(&active_offer_key, &offer_counter);
+        env.storage().persistent().extend_ttl(
+            &active_offer_key,
             INSTANCE_TTL_THRESHOLD,
             INSTANCE_TTL_EXTEND_TO,
         );
@@ -1194,15 +1210,66 @@ impl BazaarDealEngineContract {
             .ok_or(Error::OfferNotFound)
     }
 
+    /// Query the total number of seller offers submitted for a given circle.
+    pub fn get_circle_offers_count(env: Env, circle_id: u64) -> u32 {
+        let count_key = DataKey::CircleOfferCount(circle_id);
+        if env.storage().persistent().has(&count_key) {
+            env.storage().persistent().extend_ttl(
+                &count_key,
+                INSTANCE_TTL_THRESHOLD,
+                INSTANCE_TTL_EXTEND_TO,
+            );
+        }
+        env.storage().persistent().get(&count_key).unwrap_or(0)
+    }
+
+    /// Query a bounded, paginated slice of seller offer IDs submitted for a given circle.
+    pub fn get_circle_offers_slice(
+        env: Env,
+        circle_id: u64,
+        start_index: u32,
+        limit: u32,
+    ) -> Vec<u64> {
+        let total = Self::get_circle_offers_count(env.clone(), circle_id);
+        let mut results: Vec<u64> = vec![&env];
+        if start_index >= total || limit == 0 {
+            return results;
+        }
+
+        let end_index = start_index.saturating_add(limit).min(total);
+        let mut idx = start_index;
+        while idx < end_index {
+            let key = DataKey::CircleOffer(circle_id, idx);
+            if let Some(offer_id) = env.storage().persistent().get::<DataKey, u64>(&key) {
+                env.storage().persistent().extend_ttl(
+                    &key,
+                    INSTANCE_TTL_THRESHOLD,
+                    INSTANCE_TTL_EXTEND_TO,
+                );
+                results.push_back(offer_id);
+            }
+            idx += 1;
+        }
+        results
+    }
+
     /// Query all offer IDs submitted for a given circle.
     pub fn get_circle_offers(env: Env, circle_id: u64) -> Vec<u64> {
-        let key = DataKey::CircleOffers(circle_id);
+        let count = Self::get_circle_offers_count(env.clone(), circle_id);
+        if count > 0 {
+            return Self::get_circle_offers_slice(env, circle_id, 0, count);
+        }
+        let legacy_key = DataKey::CircleOffers(circle_id);
+        if env.storage().persistent().has(&legacy_key) {
+            env.storage().persistent().extend_ttl(
+                &legacy_key,
+                INSTANCE_TTL_THRESHOLD,
+                INSTANCE_TTL_EXTEND_TO,
+            );
+        }
         env.storage()
             .persistent()
-            .extend_ttl(&key, INSTANCE_TTL_THRESHOLD, INSTANCE_TTL_EXTEND_TO);
-        env.storage()
-            .persistent()
-            .get(&key)
+            .get(&legacy_key)
             .unwrap_or_else(|| vec![&env])
     }
 
