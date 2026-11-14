@@ -905,3 +905,127 @@ fn test_cancel_during_inspection_or_after_acceptance_rejected() {
     let err_inspect = client.try_cancel_circle(&creator, &circle_id);
     assert_eq!(err_inspect, Err(Ok(Error::CircleAlreadyClosed)));
 }
+
+#[test]
+fn test_seller_performance_bond_escrow_and_return_on_settlement() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let creator = Address::generate(&env);
+    let buyer = Address::generate(&env);
+    let seller = Address::generate(&env);
+
+    let token_admin = Address::generate(&env);
+    let token_contract = env.register_stellar_asset_contract_v2(token_admin);
+    let token_client = token::Client::new(&env, &token_contract.address());
+    let token_admin_client = StellarAssetClient::new(&env, &token_contract.address());
+    token_admin_client.mint(&buyer, &100_000_000);
+    // Mint 10_000_000 stroops to seller for performance bond collateral
+    token_admin_client.mint(&seller, &10_000_000);
+
+    let contract_id = env.register(BazaarDealEngineContract, ());
+    let client = BazaarDealEngineContractClient::new(&env, &contract_id);
+    client.initialize(&admin);
+
+    // Require 10% (1,000 bps) seller performance bond
+    client.set_seller_bond_bps(&admin, &1_000);
+    assert_eq!(client.get_seller_bond_bps(), 1_000);
+
+    let circle_id = client.create_circle(
+        &creator,
+        &token_contract.address(),
+        &10_000_000,
+        &10,
+        &20,
+        &86400,
+    );
+
+    client.commit_demand(&buyer, &circle_id, &10);
+    // Seller offers 10 units @ 8_000_000 stroops = 80_000_000 total -> 10% bond = 8_000_000 stroops
+    let offer_id = client.submit_seller_offer(&seller, &circle_id, &8_000_000, &10, &5);
+    let offer = client.get_offer(&offer_id);
+    assert_eq!(offer.seller_bond_stroops, 8_000_000);
+
+    // Accepting offer locks 8_000_000 stroops bond from seller into contract custody
+    client.accept_seller_offer(&creator, &circle_id, &offer_id);
+    assert_eq!(token_client.balance(&seller), 2_000_000);
+
+    // Settling deal returns the 8_000_000 bond intact + net payout (80_000_000 - 800_000 fee = 79_200_000)
+    client.settle_deal(&creator, &circle_id, &offer_id);
+    assert_eq!(token_client.balance(&seller), 2_000_000 + 8_000_000 + 79_200_000);
+
+    // Buyer claims surplus rebate (20_000_000) -> contract balance reaches 0 (zero stroop leakage)
+    client.claim_surplus_rebate(&buyer, &circle_id);
+    assert_eq!(token_client.balance(&contract_id), 0);
+}
+
+#[test]
+fn test_seller_bond_slashing_pro_rata_distribution_zero_stroop_leakage() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let admin = Address::generate(&env);
+    let creator = Address::generate(&env);
+    let buyer1 = Address::generate(&env);
+    let buyer2 = Address::generate(&env);
+    let buyer3 = Address::generate(&env);
+    let seller = Address::generate(&env);
+
+    let token_admin = Address::generate(&env);
+    let token_contract = env.register_stellar_asset_contract_v2(token_admin);
+    let token_client = token::Client::new(&env, &token_contract.address());
+    let token_admin_client = StellarAssetClient::new(&env, &token_contract.address());
+
+    // 3 buyers committing 1, 1, and 1 units (3 units total)
+    token_admin_client.mint(&buyer1, &10_000_000);
+    token_admin_client.mint(&buyer2, &10_000_000);
+    token_admin_client.mint(&buyer3, &10_000_000);
+    // Seller posts an odd-numbered bond (1_000_000 stroops) not evenly divisible by 3
+    token_admin_client.mint(&seller, &1_000_000);
+
+    let contract_id = env.register(BazaarDealEngineContract, ());
+    let client = BazaarDealEngineContractClient::new(&env, &contract_id);
+    client.initialize(&admin);
+
+    let circle_id = client.create_circle(
+        &creator,
+        &token_contract.address(),
+        &10_000_000,
+        &3,
+        &10,
+        &86400,
+    );
+
+    client.commit_demand(&buyer1, &circle_id, &1);
+    client.commit_demand(&buyer2, &circle_id, &1);
+    client.commit_demand(&buyer3, &circle_id, &1);
+
+    let offer_id = client.submit_seller_offer_with_bond(
+        &seller,
+        &circle_id,
+        &9_000_000,
+        &3,
+        &5,
+        &1_000_000,
+    );
+    client.accept_seller_offer(&creator, &circle_id, &offer_id);
+    assert_eq!(token_client.balance(&seller), 0);
+    assert_eq!(token_client.balance(&contract_id), 31_000_000);
+
+    client.initiate_inspection(&creator, &circle_id, &86400);
+    client.dispute_deal(&buyer1, &circle_id, &Symbol::new(&env, "NON_DELIVERY"));
+
+    // Admin resolves dispute in favor of buyers -> slashes 1_000_000 seller bond
+    client.resolve_dispute(&admin, &circle_id, &true);
+
+    client.claim_refund(&buyer1, &circle_id);
+    client.claim_refund(&buyer2, &circle_id);
+    client.claim_refund(&buyer3, &circle_id);
+
+    // Pro-rata shares of 1_000_000 across 3 equal buyers: 333_333, 333_333, and 333_334 (zero dust left)
+    assert_eq!(token_client.balance(&buyer1), 10_333_333);
+    assert_eq!(token_client.balance(&buyer2), 10_333_333);
+    assert_eq!(token_client.balance(&buyer3), 10_333_334);
+    assert_eq!(token_client.balance(&contract_id), 0);
+}
